@@ -1,0 +1,285 @@
+= fTimestamp =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fTimestamp Class Documentation]'''
+ - [/api/fTimestamp API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fTimestamp.php Source Code]
+
+<<toc bare>>
+
+== Date/Time Classes <<toc skip>> ==
+ - fDate
+ - fTime
+ - '''fTimestamp'''
+
+== Value Objects <<toc skip>> ==
+ - fDate
+ - fMoney
+ - fNumber
+ - fTime
+ - '''fTimestamp'''
+)))
+
+The fTimestamp class is a [/docs/ValueObjects value object] representation of a date/time. One of the primary attributes of the object is that its value can not be changed, but instead a new object is created. This object has full support for timezones.
+
+This class is built on top of the PHP date/time functions and can only handle dates ranging from 1901–2038.
+
+== Default Timezone ==
+
+The fTimestamp class is fully compatible with timezones thanks the the great changes in PHP 5.1. Classically timezones were represented by short abbreviations such as `EST`, `GMT`, `PST`, etc. To help remove abiguity, PHP now recommends using the [http://en.wikipedia.org/wiki/List_of_zoneinfo_timezones zoneinfo timezone names].
+
+Due to the revamped timezone support in PHP 5.1, it is now necessary to define the default timezone. This is done to ensure the proper timezone is being used and also prevent strict error reporting messages from appearing. fTimestamp provides two methods for setting and getting the default timezone, ::setDefaultTimezone() and ::getDefaultTimezone().
+
+{{{
+#!php
+// Set the default timezone to New York time
+fTimestamp::setDefaultTimezone('America/New_York');
+
+echo fTimestamp::getDefaultTimezone();
+// Output: America/New_York
+}}}
+
+There will be more timezone discussion throughout the rest of this document in the relevant places.
+
+== Instantiation ==
+
+The fTimestamp constructor takes two parameters, including `$datetime` and `$timezone`. `$datetime` is a string, object (with a `__toString()` method) or integer representing a date/time. For strings and objects, any format accepted by [http://php.net/strtotime `strtotime()`] will work. Integers are interpreted as a unix timestamp. `$timezone` is optional and if passed should be a string with a zoneinfo timezone name. This timezone will be used throughout the life of the timestamp. 
+
+{{{
+#!php
+// Date/times without a timezone
+$timestamp1 = new fTimestamp('today');
+$timestamp2 = new fTimestamp('now');
+$timestamp3 = new fTimestamp('3 Feb 2008 5:12 pm');
+$timestamp4 = new fTimestamp('8 am');
+$timestamp5 = new fTimestamp('next wednesday');
+$timestamp6 = new fTimestamp(1223926420);
+
+// Date/times with a timezone
+$timestamp7 = new fTimestamp('2008-03-01 1 pm', 'America/New_York');
+$timestamp8 = new fTimestamp('2008-03-01 1 pm', 'America/Los_Angeles');
+$timestamp9 = new fTimestamp('2008-03-01 1 pm', 'Europe/London');
+}}}
+
+== Modification ==
+
+Rather than allowing an fTimestamp object value to be modified, which can create issues since objects are passed by reference, all changes to a timestamp create a new object.
+
+Usually when modifying a timestamp, only one or two components (such as month, year, hour or minute) of the timestamp will change. The ::modify() method leverages the formatting codes from the [http://php.net/function.date `date()`] function to keep parts of the existing timestamp while replacing others.
+
+Here are some examples of `modify()`:
+
+{{{
+#!php
+// The new timestamp’s year would be 2007 while the rest would be the same
+$new_timestamp = $timestamp1->modify('2007-m-d H:i:s');
+
+// The new timestamp would be the 1st day (Monday) of the 9th week of the year
+$new_timestamp = $timestamp2->modify('Y-\W9-1 00:00:00');
+
+// The new timestamp would be moved to the beginning of the hour
+$new_timestamp = $timestamp3->modify('Y-m-d H:00:00');
+
+// The new timestamp would be moved to the end of the hour
+$new_timestamp = $timestamp4->modify('Y-m-d H:59:59');
+}}}
+
+It is also possible to set the timezone of the new timestamp. The timezone can be passed as the optional second parameter to `modify()`. If no timezone is specified, the new timestamp will have the same timezone as the original.
+
+{{{
+#!php
+$timestamp = new fTimestamp('now', 'America/New_York');
+
+// This new timestamp is different by three hours due to the timezone change
+$new_timestamp = $timestamp->modify('c', 'America/Los_Angeles');
+}}}
+
+== Adjustments ==
+
+Occasionally you may have the need to adjust a timestamp. The ::adjust() method takes a single parameter which can contain any relative time measurement that [http://php.net/strtotime `strtotime()`] accepts. Since fTimestamp is a value object, a new object is returned with the adjusted value. Here are some examples:
+
+{{{
+#!php
+$new_timestamp = $timestamp1->adjust('tomorrow');
+$new_timestamp = $timestamp2->adjust('+1 day');
+$new_timestamp = $timestamp3->adjust('-2 years +1 week +5 hours');
+$new_timestamp = $timestamp4->adjust('next wednesday');
+$new_timestamp = $timestamp5->adjust('+1 hour');
+$new_timestamp = $timestamp6->adjust('-2 hours +5 minutes +3 seconds');
+}}}
+
+Adjustments can also be adjustments of timezone. If a valid timezone is passed, the actual date/time will not be changed, however the date/time will appear different from ::format().
+
+{{{
+#!php
+$new_timestamp = $timestamp1->adjust('America/Los_Angeles');
+
+// Since the unix timestamp is always in UTC, these will be equal
+if ($new_timestamp->format('U') == $timestamp1->format('U')) {
+    echo 'The date/time has not changed, but the timezone has';
+}
+}}}
+
+== Formatting ==
+
+To format the timestamp, simply call the ::format() method with any valid formatting string from [http://php.net/date `date()`]. Here are some examples:
+
+{{{
+#!php
+// Normal date/time formatting
+echo $timestamp1->format('Y-m-d H:i:s');
+echo $timestamp2->format('n/j/y g:ia');
+
+// Using format to retrieve the timezone
+echo $timestamp3->format('e');
+}}}
+
+== Defining Formats ==
+
+When dealing with date across a site or application, it is easy to create inconsistent formatting. In an effort to encourage consistency and at the same time prevent the need to clutter the global namespace with constants, the ::defineFormat() static method allows for creating named formats for use with the ::format() method and the method fTime::format() and fDate::format().
+
+Definition of the formats would logically go in a configuration file. `defineFormat()` takes two parameters, the `$name` and the `$formatting_string`.
+
+{{{
+#!php
+fTimestamp::defineFormat('list_date', 'n/j/y');
+fTimestamp::defineFormat('list_time', 'g:ia');
+}}}
+
+Once defined, the format names can be passed into the `format()` method of fDate, fTime and fTimestamp.
+
+{{{
+#!php
+echo $timestamp->format('list_date');
+echo $time->format('list_time');
+}}}
+
+== Comparing ==
+
+There are five different methods available to compare timestamps, ::eq(), ::gt(), ::gte(), ::lt() and ::lte(). Each method optionally accepts a parameter `$other_timestamp`. If no `$other_timestamp` is specified, the timestamp is compared to the current timestamp. If `$other_timestamp` is specified, the two are compared. `$other_timestamp` accepts any valid date string that works with ::__construct().
+
+Here are some examples:
+
+{{{
+#!php
+$now = new fTimestamp();
+$day_ago = new fTimestamp('-1 day');
+
+// These return TRUE
+$now->eq();
+$now->eq('now');
+$now->gt($day_ago);
+$now->gte($day_ago);
+$now->lt('+5 min');
+
+// These calls return FALSE
+$day_ago->gt($now);
+$now->lt($day_ago);
+$now->lte($day_ago);
+}}}
+
+== Fuzzy Differences ==
+
+If you are looking to get a fuzzy difference between two timestamps for display, you’ll want to use the ::getFuzzyDifference() method. The first parameter, `$other_timestamp`, optionally accepts a valid timestamp descriptor that can be passed to ::__construct(). If a valid timestamp descriptor is passed, the difference will be between the two timestamps, if nothing is passed, the difference will be between the fTimestamp and the current timestamp.
+
+The value returned by `getFuzzyDifference()` will be a string representing the most broad time measurement between the two timestamps. In addition, if the difference is just shy of the next largest time measurement, it will be rounded up. Thus 3.5 weeks would become 1 month.
+
+Here are some examples to clarify. The following examples are comparing two timestamps:
+
+{{{
+#!php
+$timestamp1 = new fTimestamp('2008-01-01 8:00 am');
+$timestamp2 = new fTimestamp('2008-01-04 5:00 pm');
+
+echo $timestamp1->getFuzzyDifference($timestamp2);
+// Output: 3 days before
+
+echo $timestamp2->getFuzzyDifference('2008-01-01 8:00 am');
+// Output: 3 days after
+
+$timestamp3 = new fTimestamp('2008-01-10 1:00 am');
+
+echo $timestamp3->getFuzzyDifference($timestamp1);
+// Output: 1 week after
+
+$timestamp4 = new fTimestamp('2008-01-28 12:00pm');
+
+echo $timestamp4->getFuzzyDifference('2008-01-01 8:00 am');
+// Output: 1 month after
+}}}
+
+These examples show output when comparing an fTimestamp object with the current timestamp:
+
+{{{
+#!php
+// First, let’s assume the current day/time is January 1st, 2008 at 9:00 am.
+
+$timestamp1 = new fTimestamp('2008-01-01 12:00 pm');
+$timestamp2 = new fTimestamp('2008-01-09 9:00 am');
+$timestamp3 = new fTimestamp('2007-12-02 5:00 pm');
+
+echo $timestamp1->getFuzzyDifference();
+// Output: 3 hours from now
+
+echo $timestamp2->getFuzzyDifference();
+// Output: 1 week from now
+
+echo $timestamp3->getFuzzyDifference();
+// Output: 1 month ago
+}}}
+
+An optional boolean parameter, `$simple`, can also be passed to `getFuzzyDifference()`. When `TRUE`, this parameter causes the method to return the difference in time, but not the direction.
+
+{{{
+#!php
+$timestamp1 = new fTimestamp('2008-01-01 8:00 am');
+$timestamp2 = new fTimestamp('2008-01-04 5:00 pm');
+
+echo $timestamp1->getFuzzyDifference($timestamp2, TRUE);
+// Output: 3 days
+
+echo $timestamp2->getFuzzyDifference('2008-01-01 8:00 am', TRUE);
+// Output: 3 days
+
+$timestamp3 = new fTimestamp('2008-01-10 1:00 am');
+
+echo $timestamp3->getFuzzyDifference($timestamp1, TRUE);
+// Output: 1 week
+}}}
+
+== Localization ==
+
+PHP contains built-in support for formatting date and times in different languages via the [http://php.net/setlocale `setlocale()`] function. This function, however, has a number of shortcomings including it requiring a non-threaded web server and requiring that locale files be installed for each locale to support.
+
+The fTimestamp class provides a hook for formatting fDate, fTime and fTimestamp objects in whatever fashion is necessary. A callback can be assigned to the hook by passing it to the static method ::registerFormatCallback(). The callback should accept a single string and return a single string.
+
+It is also possible to parse locale-specific date/time/timestamp strings by passing a callback to ::registerUnformatCallback(). The callback should accept a string and return a string that will properly be parsed by [http://php.net/strtotime `strtotime()`]. An example of a valid return string would be `2009-05-01 15:22:01`.
+
+Below is an example of how the hooks could be used.
+
+{{{
+#!php
+function parse_uk_dates($date_time_string)
+{
+    if (preg_match('#^(\d{1,2})/(\d{1,2})/(\d{2}|\d{4})$#', $date_time_string, $matches)) {
+        if (strlen($matches[3]) == 2) {
+            $matches[3] = ($matches[3] <= 37) ? '20' . $matches[3] : '19' . $matches[3];
+        }
+        return $matches[3] . '-' . $matches[2] . '-' . $matches[1];
+    }
+    return $date_time_string;
+}
+function translate_dates_to_spanish($formatted_string)
+{
+    $replacements = array(
+        'Monday' => 'lunes',
+        // ...
+        'Mon' => 'lun',
+        // ...
+    );
+    return strtr($formatted_string, $replacements);
+}
+fTimestamp::registerFormatCallback('translate_dates_to_spanish');
+fTimestamp::registerUnformatCallback('parse_uk_dates');
+}}}

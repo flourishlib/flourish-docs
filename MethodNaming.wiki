@@ -1,0 +1,30 @@
+= Method Naming =
+
+Flourish uses some standards in method names to help developers easily identify
+functionality without having to review the documentation. Below is a list of
+verbs and their connotations in Flourish code:
+
+ - '''add:''' assigns a value that allows multiple
+ - '''check:''' returns a boolean
+ - '''enable:''' turn a feature on (or possibly off)
+ - '''encode:''' returns a value that is safe for output into the appropriate
+   format
+ - '''extend:''' add functionality to a class
+ - '''get:''' returns a value
+ - '''is:''' returns a boolean
+ - '''prepare:''' returns a value that is safe for output into HTML, should
+   only be used with trusted content
+ - '''print:''' echoes content
+ - '''register:''' adds or sets a callback for a hook
+ - '''set:''' assigns a value
+ - '''show:''' conditionally echoes content
+ - '''validate:''' throws an exception if something is not correct
+
+The Flourish ORM also has a few conventions for method names:
+
+ - '''build:''' returns an fRecordSet
+ - '''configure:''' adds functionality to a specific class or column
+ - '''count:''' returns the number of records in an fRecordSet
+ - '''create:''' returns a single fActiveRecord
+ - '''populate:''' uses values from the HTTP request to set values in one or
+   more objects

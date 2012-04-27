@@ -1,0 +1,103 @@
+= fValidationException =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fValidationException Class Documentation]'''
+ - [/api/fValidationException API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fValidationException.php Source Code]
+
+<<toc bare>>
+
+== Exception Classes <<toc skip>> ==
+ - fException
+  - fExpectedException
+   - fAuthorizationException
+   - fEmptySetException
+   - fNoRemainingException
+   - fNoRowsException
+   - fNotFoundException
+   - '''fValidationException'''
+  - fUnexpectedException
+   - fConnectivityException
+   - fEnvironmentException
+   - fProgrammerException
+   - fSQLException
+)))
+
+fValidationException is a sub-class of fExpectedException that indicates that some sort of input did not meet the requirements of the code. This class is used by Flourish code quite a bit and would be suitable to toss on almost any web site or application at some point.
+
+== Message with a List ==
+
+This functionality is specific to fValidationException, where it is most common and useful. In addition to being able to pass a `$message` to ::__construct() (and possibly some values to interpolate), it is possible to pass a string `$message` followed by an array of `$sub_messages`. The `$message` will be placed in a `<p>` tag and the `$sub_messages` will each be placed in an `<li>` tag inside of a `<ul>` tag.
+
+Thus, the following example code:
+
+{{{
+#!php
+throw new fValidationException(
+    'The following problems were found:',
+    array(
+        'First Name: Please enter a value',
+        'Last Name: Please enter a value',
+        'Email: Please enter your email in the format name@host.com'
+    )
+);
+}}}
+
+will create the message:
+
+{{{
+#!html
+<p>The following problems were found:</p>
+<ul>
+    <li>First Name: Please enter a value</li>
+    <li>Last Name: Please enter a value</li>
+    <li>Email: Please enter your email in the format name@host.com</li>
+</ul>
+}}}
+
+== Field Name Formatting ==
+
+Both fValidation and fORMValidation throw fValidationException objects when data has been detected that does not validate according to the established rules. In the message for these exceptions there are unordered lists of each field/column name followed by the error message for that field/column. By default the field/column name is printed followed by `: `.
+
+Sometimes it may be desirable to change the formatting of the field name, to include HTML tags such as `<strong>` or `<em>`. The static method ::setFieldFormat() accepts a single parameter that is the format for field/column names. The token `%s` is replaced with the field/column name. Any literal `%` symbols should be changed to `%%` to prevent formatting issues.
+
+Here is an example of adding `<strong>` tags around field/column names:
+
+{{{
+#!php
+fValidationException::setFieldFormat('<strong>%s</strong>: ');
+}}}
+
+== Removing Field Names ==
+
+When fActiveRecord::validate() or fValidation::validate() is called with the `$return_messages` parameter set to `TRUE`, an array of error messages will be returned, with the column or field names included in the error messages. For situations where the messages are going to be displayed next to the field in question, having the field name in the actual error message is not desirable. The static method ::removeFieldNames() will accept an array of error messages and will return an array with the same error messages, sans field names.
+
+The code below will produce a full exception including the field names, but will also provide an associative array of the key being the field/column and the value being the error message without the field name.
+
+{{{
+#!php
+$errors = $user->validate(TRUE);
+$field_errors = fValidationException::removeFieldNames($errors);
+if ($errors) {
+    throw new fValidationException('The following problems were found:', $errors);
+}
+}}}
+
+The exception message would be:
+
+{{{
+The following problems were found:
+ - First Name: Please enter a value
+ - Last Name: Please enter a value
+}}}
+
+And the `$field_errors` array would contain:
+
+{{{
+#!php
+array(
+    'first_name' => 'Please enter a value',
+    'last_name'  => 'Please enter a value'
+);
+}}}

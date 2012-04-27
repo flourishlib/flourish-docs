@@ -1,0 +1,27 @@
+= fAuthorizationException =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fAuthorizationException Class Documentation]'''
+ - [/api/fAuthorizationException API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fAuthorizationException.php Source Code]
+
+== Exception Classes <<toc skip>> ==
+ - fException
+  - fExpectedException
+   - '''fAuthorizationException'''
+   - fEmptySetException
+   - fNoRemainingException
+   - fNoRowsException
+   - fNotFoundException
+   - fValidationException
+  - fUnexpectedException
+   - fConnectivityException
+   - fEnvironmentException
+   - fProgrammerException
+   - fSQLException
+)))
+
+fAuthorizationException is a sub-class of fExpectedException that indicates some sort of authorization error has occurred.
+
+''This space intentionally left blank''

@@ -1,0 +1,23 @@
+= fSQLSchemaTranslation =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fSQLSchemaTranslation Class Documentation]'''
+ - [/api/fSQLSchemaTranslation API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fSQLSchemaTranslation.php Source Code]
+
+== Database Classes <<toc skip>> ==
+ - fDatabase
+ - fNoRowsException
+ - fResult
+ - fSQLException
+ - fSQLTranslation
+ - '''fSQLSchemaTranslation'''
+ - fSchema
+ - fStatement
+ - fUnbufferedResult
+)))
+
+The fSQLSchemaTranslation class is an internal class used by fSQLTranslation for translating [/docs/FlourishSql Flourish SQL] DDL statements, such as `ALTER TABLE` and `CREATE TABLE`, into the dialect of SQL supported by the current database. To take advantage of the features of this class, be sure to call [/api/fDatabase#translatedquery `translatedQuery()`] instead of [/api/fDatabase#query `query()`].
+
+fSQLSchemaTranslation is separate from fSQLTranslation due to the sheer amount of code necessary to implement `ALTER TABLE` functionality that works consistently across databases. In addition, this functionality is not used as frequently as the DML statements supported by fSQLTranslation.

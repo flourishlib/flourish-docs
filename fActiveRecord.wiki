@@ -1,0 +1,937 @@
+= fActiveRecord =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fActiveRecord Class Documentation]'''
+ - [/api/fActiveRecord API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fActiveRecord.php Source Code]
+
+<<toc bare>>
+
+== ORM Classes <<toc skip>> ==
+ - '''fActiveRecord'''
+ - fRecordSet
+
+ - fORM
+ - fORMColumn
+ - fORMDatabase
+ - fORMDate
+ - fORMFile
+ - fORMJSON
+ - fORMMoney
+ - fORMOrdering
+ - fORMRelated
+ - fORMSchema
+ - fORMValidation
+)))
+
+The fActiveRecord class is an abstract class that follows the [http://en.wikipedia.org/wiki/Active_record_pattern active record pattern]. It provides an object-oriented interface for creating, retrieving, storing and deleting a single row (or record) in a database. All interaction with the database is done automatically without the need to write any SQL.
+
+In addition to providing an interface to the columns in a single table, data from other database tables related via `FOREIGN KEY` constraints can be easily and efficiently retrieved. To query for and return multiple fActiveRecord objects, please see the class fRecordSet.
+
+The following discussion is built on top of the content of [/docs/OrmConventions ORM Conventions]. Topics include database schema structure, various notation standards and information about MySQL and SQLite databases.
+
+== Setup ==
+
+In order to use the fActiveRecord class, a database table must exist to be modeled. Below is an example users table—please note that the table has been designed to demonstrate the features of the class, not as an example of a well-designed schema.
+
+{{{
+#!sql
+CREATE TABLE users (
+    user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    middle_initial VARCHAR(5) NOT NULL DEFAULT '',
+    last_name VARCHAR(100) NOT NULL,
+    date_created TIMESTAMP NOT NULL,
+    email_validated BOOLEAN NOT NULL DEFAULT FALSE,
+    membership_fee DECIMAL(10,2) NOT NULL,
+    profile TEXT NOT NULL DEFAULT '',
+    status VARCHAR(20) NOT NULL CHECK(status IN ('Active', 'Inactive'))    
+);
+}}}
+
+Once a table has been created, a PHP class will need to be made. The name of the class should be in `UpperCamelCase` notation and should be a singular form of the table name. Thus for the `users` table a class `User` would be created that extends fActiveRecord.
+
+{{{
+#!php
+class User extends fActiveRecord
+{
+    protected function configure()
+    {
+    }
+}
+}}}
+
+A blank extension of the ::configure() method has been included since that is where all class functionality configuration is placed. This method is called exactly once per script execution and is the preferred location to call code to extend or set up the class, but not the individual object.
+
+In addition to the fActiveRecord class and database table, a method to connect to the database needs to be set up. To do this, an instance of the fDatabase class needs to be passed to fORMDatabase::attach() — this is commonly done in the site’s initilization script.
+
+{{{
+#!php
+// Set up a SQLite database for use by fActiveRecord and fRecordSet
+fORMDatabase::attach(
+    new fDatabase('sqlite', '/path/to/database')
+);
+}}}
+
+The fDatabase instance attached to fORMDatabase will also be used by fRecordSet.
+
+=== Custom Class to Table Mapping ===
+
+It is possible to change the class to table association for modeling an existing incompatible database. The static method fORM::mapClassToTable() will accept the `$class` and the `$table` to map to the class to. 
+
+''This method should be called in the site-wide configuration and should '''not''' be called in the ::configure() method.''
+
+{{{
+#!php
+// Class to table mapping should occur before any classes are used
+// such as when the database is attached via fORMDatabase::attach()
+fORMDatabase::attach($db);
+fORM::mapClassToTable('User', 'user');
+}}}
+
+=== Modeling Tables in Other Schemas ===
+
+When a class models a table in a non-default schema (`public` for PostgreSQL, `dbo` for MSSQL and the username for Oracle and DB2), the static method fORM::mapClassToTable() should be called with first parameter the `$class` to map, and the second parameter, `$table`, should be in the format `schema.table`.
+
+''This method should be called in the site-wide configuration and should '''not''' be called in the ::configure() method.''
+
+{{{
+#!php
+// This maps the User class to the users table in the authorization schema
+fORM::mapClassToTable('User', 'authorization.users');
+}}}
+
+=== Using Multiple Databases ===
+
+When multiple databases are configured via fORMDatabase, classes can model tables on the non-`default` database by calling the method fORM::mapClassToDatabase(). The first parameter is the `$class` to map, and the second is the `$name` of the database set in fORMDatabase::attach(). 
+
+{{{
+#!php
+// Attach a second database as "commerce_db" and have the User class model the users table in it
+fORMDatabase::attach($db, 'commerce_db');
+fORM::mapClassToDatabase('User', 'commerce_db');
+}}}
+
+''Like fORM::mapClassToTable(), this method should be called in the site-wide configuration and should '''not''' be call in the ::configure() method. This method is not required for classes modeling tables in the default database — if no `$name` was provided to fORMDatabase::attach(), then the database is the default.''
+
+== Creating and Loading Records ==
+
+A new record can be created by simply creating an object without any parameters.
+
+{{{
+#!php
+$new_user_1 = new User();
+$new_user_2 = new User();
+}}}
+
+Existing records can be loaded from the database by passing the primary key value to the constructor. If a primary key has multiple columns, use an associative array with the keys being the columns.
+
+{{{
+#!php
+// Loading a record with a single column primary key
+$user = new User(2);
+
+// Loading a record with a multiple column primary key
+$permission = new Permission(array('user_id' => 2, 'resource_id' => 3));
+}}}
+
+It is also possible to load a record based on the values from columns in a `UNIQUE` constraint. When loading via a `UNIQUE` constraint, an associative array must be used, even if there is only a single column in the constraint.
+
+{{{
+#!php
+// This loads a user by their unique email address
+$user = new User(array('email' => 'will@flourishlib.com'));
+}}}
+
+Please note that an fActiveRecord object is a [/docs/ReferenceObjects reference object]. All objects of the same class will share the same data and any operations will affect all instances. Thus if the `User` object for user `3` has the first name changed, all other objects representing user `3` will also have the first name changed.
+
+== Column Operations ==
+
+For every column in a record there are at least five different operations that can be performed. ORM plugins can change these default behaviors or add even more.
+
+|| '''Action''' || '''Description'''               ||
+|| `get`        || Retrieves the column’s value    ||
+|| `set`        || Sets a new value for the column - empty string `''` are converted to `NULL` ||
+|| `encode`     || Encodes all special HTML characters — should be used when content is not trusted or for displaying in HTML tag attributes ||
+|| `prepare`    || Encodes all special HTML characters, but leaves HTML tags and entities unencoded — should only be used for trusted content ||
+|| `inspect`    || Returns information about the column, including information such as the data type and valid values ||
+
+These five operations are combined with the column name into a `camelCase` method name. Below are some examples:
+
+{{{
+#!php
+$first_name = $user->getFirstName();
+
+$user->setFirstName($first_name);
+
+echo $user->encodeFirstName();
+
+echo $user->prepareFirstName();
+
+$max_length = $user->inspectFirstName('max_length');
+}}}
+
+As mentioned on the [/docs/OrmConventions ORM Conventions] page, all columns in the database should be created using `underscore_notation`. This assumes that numbers are separated from words by an underscore, such as `address_2`. If a number is not separated by an underscore, or you are having other notation conversion issues, you man need to [/docs/fGrammar#FixingNotationConversionIssues customize the notation conversion] using fGrammar.
+
+=== Date, Time and Timestamp Columns ===
+
+When dealing with date, time or timestamp columns, the `prepare` and `encode` methods require a single parameter, `$date_formatting_string`. The formatting string can be any valid [http://php.net/date.function `date()`] formatting string, or a format name that was created with fTimestamp::defineFormat().
+
+{{{
+#!php
+echo $user->prepareDateCreated('n/j/y');
+echo $user->encodeDateCreated('my_date_format');
+}}}
+
+=== Float/Decimal Columns ===
+
+Floating point columns ''without'' an explicit precision require a single parameter, `$decimal_places`, when calling the `prepare` and `encode` methods. Floating point columns ''with'' an explicit precision can optionally pass an integer for `$decimal_places`.
+
+{{{
+#!php
+echo $user->prepareMembershipFee(2);
+}}}
+
+=== String Columns ===
+
+Columns that are string columns (`VARCHAR`, `CHAR` and `TEXT`) can optionally pass `TRUE` to their `prepare` and `encode` methods to cause all email addresses and website addresses to be converted to HTML links and to cause content without block-level HTML to have newline characters converted to `<br />` tags.
+
+{{{
+#!php
+echo $user->prepareEmail(TRUE);
+echo $user->prepareProfile(TRUE);
+}}}
+
+=== All Columns ===
+
+Every column has an `inspect` method that will return an associative array of data about the column. It is also possible to retrieve a single value by passing the optional parameter, `$element`.
+
+{{{
+#!php
+$column_info = $user->inspectFirstName();
+$max_length  = $user->inspectFirstName('max_length');
+}}}
+
+== Column Values and Objects ==
+
+The fActiveRecord class supports storing both scalar values (strings, integers, booleans, etc) and objects in columns. The only special consideration with storing objects in columns is that they should have a `__toString()` method so that they can be converted to a scalar to be saved in the database.
+
+All of the Flourish [/docs/ValueObjects value objects] include such a `__toString()` method, making them work perfectly with fActiveRecord. In fact, fActiveRecord even loads `date`, `time` and `timestamp` columns out of the database into fDate, fTime and fTimestamp objects respectively. Nothing needs to be called or configured to enable this functionality. Thus, when getting `date`, `time` or `timestamp` values from a record, be sure to treat them as fDate, fTime and fTimestamp objects.
+
+{{{
+#!php
+// Chaining the fDate::format() method off of the get method
+echo $user->getDateCreated()->format('n/j/y');
+
+// Objects can be stored in a column as long as they have a __toString() method
+$user->setLastLoginTimestamp(new fTimestamp());
+}}}
+
+== Record Operations ==
+
+The following methods allow manipulation of an active record object:
+
+|| '''Method'''  || '''Description''' ||
+|| ::store()     || Performs ::validate() and then executes an `INSERT` or `UDPATE` query ||
+|| ::validate()  || Ensures a record can be successfully saved to the database without actually doing it ||
+|| ::delete()    || Deletes a record from the database ||
+|| ::load()      || Reloads a record’s values from the database ||
+|| ::populate()  || Values from the HTTP request will automatically be set to the various columns of the record ||
+|| ::replicate() / `clone` || Creates a copy of the record, cloning all contained objects and removing any auto incrementing primary key, can also replicate related records ||
+|| ::exists()    || Indicates if a record has already been stored in the database ||
+|| ::reflect()   || Returns a string containing the method signature for every method of the record ||
+
+=== store() ===
+
+The ::store() method will ensure that the record can be properly saved in the database and will store it there. If any errors are found, an fValidationException will be thrown with a message that is suitable for display to end users. The validation is performed by `store()` calling ::validate().
+
+`store()` will also automatically begin a database and filesystem transaction if they are not already in progress. This allows database and filesystem actions to be performed in extending code and child objects without the need to keep track of changes manually and revert them.
+
+{{{
+#!php
+try {
+    $user = new User();
+    $user->setFirstName('Will');
+    $user->setLastName('Bond');
+    $user->store();
+
+} catch (fExpectedException $e) {
+    echo $e->printMessage();
+}
+}}}
+
+There is a single optional parameter, `$force_cascade`, that affects how related records in one-to-many and one-to-one relationships are stored. ''See the [#RelatedRecordsOperations Related Records Operations] section for more details about how related records can be accessed and manipulated.''
+
+If related records (which we will call child records) have been set via an `associate` or `populate` method, and one or more of the original child records is no longer associated, and that child records has child records (grandchildren of the original) with an `ON DELETE RESTRICT` or `ON DELETE NO ACTION` clause in the `FOREIGN KEY` constraint, that child and the associated grandchildren records will all be deleted anyway. Normally an exception would be thrown indicating the child to be deleted had a grandchild record referencing it.
+
+By default this parameter is set to `FALSE` to obey the restrictions in the database schema.
+
+{{{
+#!php
+$user->populateFakeRelatedRecords();
+$user->store(TRUE);
+}}}
+
+This forced cascade effect is accomplished by first finding the related records and explicitly deleting them before the originally associated record.
+
+=== validate() ===
+
+Validation of a record is performed based on the database schema and any additional validation rules set via the fORMValidation class, ORM plugins and fORM hooks.
+
+==== What is Validated ====
+
+The following rules are used to determine if a record is valid to store in the database:
+
+ 1. All data must be compatible with the data type of the column it is being stored in
+ 2. If a column has a `NOT NULL` constraint and does not have a `DEFAULT` value, a value other than an empty string must be set
+ 3. If a value has a `FOREIGN KEY` constraint, the value must reference a valid value
+ 4. If a column has a `UNIQUE` or `PRIMARY KEY` contraint, the value must be `NULL` or unique
+ 5. If a column has a `CHECK` constraint with an `IN (...)` expression, the value must be in the list - for MySQL this holds true for `ENUM` columns
+ 6. If a column is a `VARCHAR` or `CHAR` column, the value string length must be less than or equal to the size of the column
+
+If any of these validation checks do not work out, an fValidationException will be thrown contains an error message suitable for end users.
+
+There are many additional validation rules that can be added to a record via fORMValidation. If the desired functionality is not available via fORMValidation, an ORM hook can be used. Please see the [/docs/fORM#AddingFunctionalitytofActiveRecord Adding Functionality to fActiveRecord] and [/docs/fORM#CustomValidationUsingaHook Custom Validation Using a Hook] section of the fORM page for details and example code.
+
+Many of the various ORM plugins that come with Flourish (fORMColumn, fORMDate, fORMFile, fORMMoney and fORMOrdering) add additional validation rules.
+
+==== Usage ====
+
+Since this method is automatically called when executing ::store(), it will typically only be called in situations where storing is not possible, such as multi-page forms.
+
+{{{
+#!php
+try {
+    // ...
+    $user->validate();
+
+} catch (fValidationException $e) {
+    echo $e->printMessage();
+}
+}}}
+
+It is also possible to return an array of errors by passing `TRUE` to the first parameter of ::validate(), `$return_messages`. This prevents an exception from being thrown.
+
+{{{
+#!php
+$errors = $user->validate(TRUE);
+}}}
+
+The returned array will have keys in the following format with the value being the error message.
+
+ - Errors involving a single column: the key will be the database column name
+ - Errors involving multiple columns: the key will be the database column names joined by `,`
+ - Errors involving related tables: the key will be the related table name
+ - Errors involving columns in one-to-one related tables: the key will be the related table name ollowed by `::` followed by the column name (or column names joined by `,`)
+ - Errors involving columns in one-to-many related tables: the key will be the related table name followed by `[` followed by the zero-based record number, followed by `]`. The value of this key will be an associative array containing two keys, name and errors. The name key will have a user-friendly name for the related record and the errors key will contain an array of error messages for the related record.
+
+Below is an example of a returned array:
+
+{{{
+#!php
+array(
+    // Regular columns in the users table
+    'first_name'        => 'First Name: Please enter a value',
+    'last_name'         => 'Last Name: Please enter a value',
+    // A message involving multiple columns, from fORMValidate::addOneOrMoreRule()
+    'email,phone'       => 'Email, Phone: Please enter at least one',
+    // A message from fORMValidate::addManyToManyRule()
+    'groups'            => 'Groups: Please select at least one',
+    // A message from the bio column in the one-to-one related user_details table
+    'user_details::bio' => 'User Details Bio: Please enter a value',
+    // Messages from one-to-many related favorites table
+    'favorites[0]'      => array(
+        'name'   => 'Favorite #1',
+        'errors' => array(
+            'name' => 'Name: Please enter a value'
+        )
+    ),
+    'favorites[2]'      => array(
+        'name'   => 'Favorite #3',
+        'errors' => array(
+            'name' => 'Name: Please enter a value'
+        )
+    )
+);
+}}}
+
+''If you are interested in changing the `name` of a one-to-many child record, please see the fORMRelated section [/docs/fORMRelated#OverridingChildRecordValidationNames Overriding Child Record Validation Names].''
+
+When passing `TRUE` to `$return_messages`, it is also possible to pass `TRUE` to the second parameter, `$remove_column_names`. This will remove the names of the columns from the error messages themselves, leaving the array with the regular keys, but anonymous messages useful for inclusion next to inputs.
+
+{{{
+#!php
+$errors = $user->validate(TRUE, TRUE);
+}}}
+
+The returned array would look like:
+
+{{{
+#!php
+array(
+    // Regular columns in the users table
+    'first_name'        => 'Please enter a value',
+    'last_name'         => 'Please enter a value',
+    // A message involving multiple columns, from fORMValidate::addOneOrMoreRule()
+    'email,phone'       => 'Please enter at least one',
+    // A message from fORMValidate::addManyToManyRule()
+    'groups'            => 'Please select at least one',
+    // A message from the bio column in the one-to-one related user_details table
+    'user_details::bio' => 'Please enter a value',
+    // Messages from one-to-many related favorites table
+    'favorites[0]'      => array(
+        'name'   => 'Favorite #1',
+        'errors' => array(
+            'name' => 'Please enter a value'
+        )
+    ),
+    'favorites[2]'      => array(
+        'name'   => 'Favorite #3',
+        'errors' => array(
+            'name' => 'Please enter a value'
+        )
+    )
+);
+}}}
+
+=== delete() ===
+
+The ::delete() method will remove the record from the database. Obviously, any cascading `FOREIGN KEY` constraints could cause other records to be deleted as well. This method will throw an fValidationException if the record is referenced by another record via a `FOREIGN KEY` constraint with an `ON DELETE RESTRICT` or `ON DELETE NO ACTION` clause.
+
+{{{
+#!php
+try {
+    $user->delete();
+} catch (fValidationException $e) {
+    echo $e->printMessage();
+}
+}}}
+
+There is an optional parameter, `$force_cascade`, that when set to `TRUE` will delete all records that reference the record being deleted, even if they have an `ON DELETE RESTRICT` or `ON DELETE NO ACTION` clause in the `FOREIGN KEY` constraint. By default this is set to `FALSE` to obey the restrictions in the database schema.
+
+{{{
+#!php
+$user->delete(TRUE);
+}}}
+
+This is accomplished by first finding the related records and explicitly deleting them before the original record.
+
+=== load() ===
+
+The ::load() method causes the values for the record to be reloaded from the database, overwriting any values that have been changed since the object was first loaded.
+
+{{{
+#!php
+$user = new User(3);
+$user->setFirstName('Joe');
+
+// Reset the first name
+$user->load();
+}}}
+
+=== populate() ===
+
+The ::populate() method sets the values for a record from the fields and value contained in an HTTP request. For values to be pulled from the request, the HTML field names should be exactly the same as the database column names. Values from the form that are a blank strings are automatically converted to `NULL`.
+
+The following HTML form when combined with the `populate()` method would cause the `first_name`, `last_name` and `email` column values to be set:
+
+{{{
+#!html
+<form action="" method="post">
+    <fieldset>
+        <p>
+            <label for="first_name">First Name</label>
+            <input type="text" id="first_name" name="first_name" />
+        </p>
+        <p>
+            <label for="last_name">Last Name</label>
+            <input type="text" id="last_name" name="last_name" />
+        </p>
+        <p>
+            <label for="email">Email</label>
+            <input type="text" id="email" name="email" />
+        </p>
+        <p>
+            <input type="submit" value="Save" />
+        </p>
+    </fieldset>
+</form>
+}}}
+
+{{{
+#!php
+try {
+    $user = new User();
+
+    // This will set first_name, last_name and email
+    $user->populate();
+    $user->store();
+
+} catch (fExpectedException $e) {
+    echo $e->printMessage();
+}
+}}}
+
+==== Blank Strings ====
+
+By default, ::populate() calls the individual `set` methods for each column in a record. This ensures that overridden methods are correctly called. The `set` methods in fActiveRecord will by default convert an empty string value `''` to `NULL`. This treats empty HTML form input as if the user entered nothing.
+
+Blank strings can be stored in a database columninstead of `NULL` by setting the column to `NOT NULL` and `DEFAULT ''`. When fActiveRecord finds a `NOT NULL` column with a `NULL` value and a non-`NULL` default, the default is substituted in place of the `NULL`.
+
+==== Checkboxes ====
+
+When using checkboxes in forms to be populated, it is best to preceed the checkbox input with a hidden input using the same name but a `FALSE` value. This way, if the checkbox is unchecked, PHP gets the value from the hidden input, changing the column to a `FALSE` value. When the checkbox is checked, PHP gets the value from the checkbox input, changing the column to a `TRUE` value.
+
+{{{
+#!html
+<form action="" method="post">
+    <fieldset>
+        <p>
+            <input type="hidden" name="enroll_me" value="0" />
+            <label for="enroll_me">Enroll Me</label>
+            <input type="checkbox" id="enroll_me" name="enroll_me" value="1" />
+        </p>
+        <p>
+            <input type="submit" value="Save" />
+        </p>
+    </fieldset>
+</form>
+}}}
+
+Please note that there '''''IS''''' a difference between setting the hidden input to a blank string value and a `FALSE` value such as `0`. As mentioned in the previous section, empty strings are converted to `NULL`, whereas a value such as `0` or `false` would not be.
+
+Certain fORMValidation methods check to see if a column has a non-null value. If an empty string is used for the hidden input, the validation method would see that no value has been selected. If a non-null false value is used, the validation method would see that a non-null value has been selected. Depending on the requirements of the application, this distinction may be very important.
+
+=== replicate() / clone ===
+
+The ::replicate() method, passed no parameters is equivalent to a record being cloned. When an fActiveRecord object is cloned, all values and cache entries are copied (or cloned if the value is an object), all related records and old values are purged, any auto incrementing primary keys are erased and the record is changed to look as though it does not yet exist in the database.
+
+{{{
+#!php
+$user = new User(1);
+
+// Both $user2 and $user3 will have no $user_id and will return FALSE from ->exists()
+$user2 = clone $user;
+$user3 = $user->replicate();
+}}}
+
+It is also possible to replicate related records along with a record by passing plural class names into ::replicate(). There may be any number of class names and the classes must be for related records that are in a many-to-many or one-to-many relationship with the record. Below is an example of replicating a user and including all of their group memberships and favorites (see [#RelatedRecordsOperations Related Records Operations] for the database schema).
+
+{{{
+#!php
+$user     = new User(1);
+$new_user = $user->replicate('Groups', 'Favorites');
+}}}
+
+If a record is has more than one relationship route to the related record class, the route should be specified between curly braces (`{` and `}`), like below:
+
+{{{
+#!php
+$user     = new User(1);
+$new_user = $user->replicate('Resources{read_permissions}');
+}}}
+
+=== exists() ===
+
+The ::exists() method simply returns a boolean indicating if the record was loaded from the database.
+
+{{{
+#!php
+if (!$user->exists()) {
+    $user->sendWelcomeEmail();
+}
+}}}
+
+This function is mostly useful when dealing with an object in a different scope than that which it was created. For instance, checking a record that has been passed into a function or an [/docs/fORM#AddingFunctionalitytofActiveRecord fActiveRecord hook callback].
+
+==== Warning ====
+
+Please note that this only checks to see if the object was constructed by passing a primary or unique key into the constructor. It can '''not''' be used with `set` methods to check and see if a record exists in the database.
+
+'''The following code will NOT check to see if a user with the id 3 exists in the database.''' This call to exists will always return `FALSE` since the object was constructed without any parameters.
+
+{{{
+#!php
+$user = new User();
+$user->setUserId(3);
+if ($user->exists()) {
+    // …
+}
+}}}
+
+The proper way to check if a record exists in the database is to try and create an instance, catching an fNotFoundException:
+
+{{{
+#!php
+try {
+    $user = new User(3);
+} catch (fNotFoundException $e) {
+    // …
+}
+}}}
+
+From a technical perspective, for the first example to work, fActiveRecord object would have to have a mutable identity, meaning the object would change what row it represented over its lifetime. This would likely cause many other unintended side effect in common code.
+
+=== reflect() ===
+
+Since fActiveRecord classes have dynamic functionality based on the structure of a database table, sometimes it can be useful to check and see what exactly is available for a specific class. The ::reflect() method returns a preformatted text block containing the method signature for every method, concrete and dynamic, in the class.
+
+{{{
+#!php
+echo '<pre>' . $user->reflect() . '</pre>';
+}}}
+
+would output something like
+
+{{{
+public function getFirstName();
+
+public function setFirstName($first_name);
+
+public function prepareFirstName();
+
+public function encodeFirstName();
+
+public function inspectFirstName($element=NULL);
+}}}
+
+It is also possible to pass a `TRUE` parameter to `reflect()` to also return the PHPDoc doc block for a method.
+
+{{{
+#!php
+
+// Request the PHPDoc doc block too
+echo $user->reflect(TRUE);
+}}}
+
+== Related Records Operations ==
+
+One of the useful features of fActiveRecord is that it automatically finds all related tables in a database schema by looking at `FOREIGN KEY` constraints. Absolutely no configuration is needed in the class.
+
+The following tables definitions will be used for the examples below and are purposefully simple to help focus on the features, not the SQL.
+
+{{{
+#!sql
+CREATE TABLE groups (
+    name VARCHAR(100) PRIMARY KEY
+);
+
+CREATE TABLE users (
+    user_id SERIAL PRIMARY KEY,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(100) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE user_details (
+    user_id INTEGER PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+    photo VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE users_groups (
+    group VARCHAR(100) NOT NULL REFERENCES groups(name) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    PRIMARY KEY (group, user_id)
+);
+
+CREATE TABLE favorites (
+    favorite_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    url VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE resources (
+    resource_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    owner INTEGER NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT
+);
+
+CREATE TABLE read_permissions (
+    resource_id INTEGER NOT NULL REFERENCES resources(resource_id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    PRIMARY KEY (resource_id, user_id)
+);
+}}}
+
+For the sake of the examples below, assume that the following classes have been defined to extend fActiveRecord:
+
+{{{
+Favorite
+Group
+Resource
+User
+UserDetail
+}}}
+
+Where there are multiple relationships between two table, such as from `users` to `resources`, fActiveRecord contains optional parameters for all related record methods that allows the proper [/docs/OrmConventions#RelationshipRoutes  relationship route] to be specified. For details, please see the [#RelationshipRoutes Relationship Routes] section.
+
+The detection of related tables allows for the following functionality to be provided:
+
+=== *-to-one Relationships ===
+
+When a column in a table contains a `FOREIGN KEY` constraint to another table, the two tables are in either a many-to-one or one-to-one relationship. The relationship would only be one-to-one if there was a `UNIQUE` constraint on the column with the `FOREIGN KEY`.
+
+For instance, the `resources` table references the `users` table via the `owner` column. Because this `FOREIGN KEY` exists, it is possible to call a `create` action to instantiate the proper `User` object. 
+
+{{{
+#!php
+$resource = new Resource(1);
+$user = $resource->createUser();
+}}}
+
+==== One-to-one Relationships ====
+
+Since the `user_details` table references the `user_id` as a `PRIMARY KEY`, there can only be a single `user_details` record for each entry in `users`. This makes it a one-to-one relationship. For one-to-one relationships, it is also possible to call the [#Populating `populate`] and [#BuildingListingCountingandHas `has`] actions just like *-to-many relationships. When working with one-to-one relationships, the related record name is singular rather than plural.
+
+{{{
+#!php
+$user = new User(1);
+$user->populateUserDetail();
+}}}
+
+{{{
+#!php
+if ($user->hasUserDetail()) {
+    // …
+}
+}}}
+
+=== *-to-many Relationships ===
+
+When a column is referenced by a `FOREIGN KEY` constraint in another table, the two tables involved will end up being in either a one-to-many or many-to-many relationship. Many-to-many relationships happen when a [/docs/OrmConventions#JoiningTables joining table] is used and the `FOREIGN KEY` constraints live in the joining table.
+
+For the examples below the one-to-many relationship between the `users` table and the `favorites` table will be used along with the many-to-many relationship between the `users` and `groups` tables.
+
+==== Building, Listing, Counting and Has ====
+
+Each user on the system can have multiple favorites simply by creating new favorites and having each one reference the same user. The `build` action will create an fRecordSet of all records in such a relationship:
+
+{{{
+#!php
+$favorites = $user->buildFavorites();
+}}}
+
+The `$favorites` record set may be empty, or it may contain quite a number of records.
+
+In situations where the related records don’t need to be created, but a primary key will suffice, it is also possible to `list` related records. This will return an array of related primary keys.
+
+{{{
+#!php
+$favorite_ids = $user->listFavorites();
+}}}
+
+The `count` action can be called for any related record and it will return the number of related records.
+
+{{{
+#!php
+$number_of_favorites = $user->countFavorites();
+}}}
+
+If a number of records is not required, but just that related records exist, the `has` action can be used.
+
+{{{
+#!php
+if ($user->hasFavorites()) {
+    // …
+}
+}}}
+
+Both one-to-many and many-to-many relationships support the `build`, `count`, `list` and `has` actions.
+
+==== Associating ====
+
+In many-to-many relationships, both types of records can exist without directly referencing each other. Thus often it is necessary to take one set of records and associate it with a specific record. The `associate` action will do this, such as below where a user is being associated with every group.
+
+{{{
+#!php
+$groups = fRecordSet::build('Group');
+$user->associateGroups($groups);
+$user->store();
+}}}
+
+`associate` methods will accept an fRecordSet, an array of fActiveRecord objects or an array of primary keys. ''It is also possible to call `associate` methods to associate records in a one-to-many relationship, however the `link` action discussed next only works with many-to-many relationships.''
+
+It is also possible to parse associations from the fields in an HTTP request. In that situation the HTML form fields must be named in the format `{plural_underscore_related_class}::{foreign_column}[]`. The `link` action will grab values from the HTTP request and use them for associating records in a many-to-many relationship.
+
+{{{
+#!html
+<form action="" method="post">
+    <fieldset>
+        <p>
+            <label for="first_name">First Name</label>
+            <input type="text" id="first_name" name="first_name" />
+        </p>
+        <p>
+            <label for="last_name">Last Name</label>
+            <input type="text" id="last_name" name="last_name" />
+        </p>
+        <p>
+            <label for="email">Email</label>
+            <input type="text" id="email" name="email" />
+        </p>
+        <p>
+            <label for="group_a">Group A</label>
+            <input type="checkbox" id="group_a" name="groups::name[]" value="Group A" />
+        </p>
+        <p>
+            <label for="group_b">Group B</label>
+            <input type="checkbox" id="group_b" name="groups::name[]" value="Group B" />
+        </p>
+        <p>
+            <label for="group_c">Group C</label>
+            <input type="checkbox" id="group_c" name="groups::name[]" value="Group C" />
+        </p>
+        <p>
+            <input type="submit" value="Save" />
+        </p>
+    </fieldset>
+</form>
+}}}
+
+{{{
+#!php
+$user->linkGroups();
+$user->store();
+}}}
+
+Please note that ::store() must be called to actually save the new relationships between the two tables.
+
+==== Populating ====
+
+For records that have "child" object in one-to-many relationships, the `populate` action will call the ::populate() method for each of a list of related records. In addition, when ::store() is called on the master record, all of the child records will be saved too.
+
+Below is an example of the kind of HTML form that is needed for creating and populating child objects. Normally the HTML for the child object would be added and removed from the page on the fly using javascript, otherwise the ::validate() method from a child object could stop the records from being saved when a child object’s values are not complete. The initial printing of the HTML form elements is normally handled server side by iterating trough the fRecordSet of related records.
+
+Each set of inputs for child object should always contain the `PRIMARY KEY` column and the column with the `FOREIGN KEY` constraint that references this table. Any other columns should only be included if new data is desired.
+
+Each input for a related record needs to be prefixed with the plural `underscore_notation` version of the class name plus `::`. In addition, each input should use array syntax at the end with a key shared for all inputs of the same record. The key can be any number or string, but must be the same for each input of the record. The example below uses `0`, `1` and `2` as a simple example.
+
+{{{
+#!html
+<form action="" method="post">
+    <fieldset>
+        <p>
+            <label for="first_name">First Name</label>
+            <input type="text" id="first_name" name="first_name" />
+        </p>
+        <p>
+            <label for="last_name">Last Name</label>
+            <input type="text" id="last_name" name="last_name" />
+        </p>
+        <p>
+            <label for="email">Email</label>
+            <input type="text" id="email" name="email" />
+        </p>
+        <p>
+            <label for="fav_1">Favorite #1</label>
+            <input type="name" id="fav_1" name="favorites::url[0]" value="" />
+            <input type="hidden" name="favorites::user_id[0]" value="2" />
+            <input type="hidden" name="favorites::favorite_id[0]" value="" />
+        </p>
+        <p>
+            <label for="fav_2">Favorite #2</label>
+            <input type="checkbox" id="fav_2" name="favorites::url[1]" value="" />
+            <input type="hidden" name="favorites::user_id[1]" value="2" />
+            <input type="hidden" name="favorites::favorite_id[1]" value="" />
+        </p>
+        <p>
+            <label for="fav_3">Favorite #3</label>
+            <input type="checkbox" id="fav_3" name="favorites::url[2]" value="C" />
+            <input type="hidden" name="favorites::user_id[2]" value="2" />
+            <input type="hidden" name="favorites::favorite_id[2]" value="" />
+        </p>
+        <p>
+            <input type="submit" value="Save" />
+        </p>
+    </fieldset>
+</form>
+}}}
+
+The following PHP would actually create 3 `Favorite` objects and would set them to be saved when ::store() is called on the `User` object.
+
+{{{
+#!php
+try {
+    $user->populate();
+    $user->populateFavorites();
+    $user->store();
+
+} catch (fExpectedException $e) {
+    echo $e->printMessage();
+}
+}}}
+
+=== Relationship Routes ===
+
+When there are multiple one-to-many, many-to-many or *-to-one relationships for two tables, the proper route must be specified when calling the various related record methods. The appropriate route name can be determined by viewing the [/docs/OrmConventions#RelationshipRoutes Relationship Routes] section of the [/docs/OrmConventions ORM Conventions] page.
+
+Routes can be specified in any of the following methods even if only one route exists, however that route will be automatically detected if not specified.
+
+The `build`, `count`, `create`, `link`, `list` and `populate` action methods all optionally accept the route as the first parameter.
+
+{{{
+#!php
+$record->createRelatedRecord('route');
+
+$record->buildRelatedRecords('route');
+
+$record->countRelatedRecords('route');
+
+$record->linkRelatedRecords('route');
+
+$record->listRelatedRecords('route');
+
+$record->populateRelatedRecords('route');
+}}}
+
+`associate` action methods optionally accept the route as the second parameter.
+
+{{{
+#!php
+$record->associateRelatedRecords($related_records, 'route');
+}}}
+
+When working with relationship routes in HTML forms, the relationship route name should be enclosed in `{}` directly after the foreign table name. This applies to forms being used with both the `link` and `populate` actions. Below is an example of a form for selecting the resources related to a user:
+
+{{{
+#!html
+<p>
+    <input type="checkbox" id="resource_1" name="resources{read_permissions}::resource_id[]" value="1" />
+    <label for="resource_1">Resource 1</label>
+</p>
+<p>
+    <input type="checkbox" id="resource_2" name="resources{read_permissions}::resource_id[]" value="2" />
+    <label for="resource_2">Resource 2</label>
+</p>
+}}}
+
+== Configuration ==
+
+As mentioned in the [#Setup Setup section], the instance method ::configure() is called once per script execution for each classes that extends fActiveRecord. This method is designed to be the preferred place to execute any configuration code for an active record class.
+
+{{{
+#!php
+class User extends fActiveRecord
+{
+    protected function configure()
+    {
+        // Configure the extra feature and overrides using the supporting ORM classes
+    }
+}
+}}}
+
+The following classes provide methods that extends and change the way that fActiveRecord classes work. Each class’s documentation page will include the necessary details on how to configure each bit of functionality and how it affects the standard use of active record classes.
+
+|| '''fORM'''           || Provides functionality to override database table to class mapping, change the names used for records and column and extends fActiveRecord and fRecordSet through registering callbacks for various hooks ||
+|| '''fORMColumn'''     || Allows changing the validation of columns to require email addresses or links, can configure columns to always create fNumber objects when loaded or have a column filled with a random string the first time a record is saved ||
+|| '''fORMDate'''       || Can set columns to automatically save the date a record was created or last updated and can tie a timestamp column to another column to allow for saving timezones ||
+|| '''fORMFile'''       || Provides functionality to automatically handle file or image uploads, including options to automatically duplicate and manipulate images ||
+|| '''fORMJSON'''       || Extends both fActiveRecord and fRecordSet to have `toJSON()` methods ||
+|| '''fORMMoney'''      || Can set columns to be loaded out of the database as fMoney objects and can tie fMoney columns to a second column to store currencies ||
+|| '''fORMOrdering'''   || Allows configuring a column (either individually or in a group of columns) as the arbitrary ordering column for a class ||
+|| '''fORMRelated'''    || Provides functionality to set the order in which related records are returned or modify what they are called (in context) ||
+|| '''fORMValidation''' || Allows setting additional validation rules (including conditional, one-or-more, many-to-many, etc), set the order for validation messages and configure `UNIQUE` constraints as case-insensitive ||

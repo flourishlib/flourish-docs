@@ -1,0 +1,246 @@
+= fORMFile =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fORMFile Class Documentation]'''
+ - [/api/fORMFile API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fORMFile.php Source Code]
+
+<<toc bare>>
+
+== ORM Classes <<toc skip>> ==
+ - fActiveRecord
+ - fRecordSet
+
+ - fORM
+ - fORMColumn
+ - fORMDatabase
+ - fORMDate
+ - '''fORMFile'''
+ - fORMJSON
+ - fORMMoney
+ - fORMOrdering
+ - fORMRelated
+ - fORMSchema
+ - fORMValidation
+)))
+
+The fORMFile class is an ORM plugin to provide file and file upload handling to fActiveRecord classes.
+
+== File Upload Columns ==
+
+Any `varchar`, `char` or `text` field can be configured to act as a file upload column by calling the static method ::configureFileUploadColumn(). The method takes three parameters, the `$class`, the `$column` and the `$directory` to store file in. The `$directory` can be a string file path or an fDirectory object.
+
+{{{
+#!php
+class NewsArticle extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMFile::configureFileUploadColumn(
+            $this,
+            'attachment',
+            '/path/to/attachment/upload/dir'
+        );
+    }
+}
+}}}
+
+Once a file has been configured as a file upload column, the fActiveRecord::populate() method will automatically move any files uploaded in a field with the same as the column. It is also possible to upload a file for the column separately by calling the `upload` method for a column.
+
+{{{
+#!php
+$user = new User();
+if (fRequest::isPost()) {
+    // Populate column values from the request and
+    // upload files into file upload columns
+    $user->populate();
+
+    // Upload just the attachment
+    $user->uploadAttachment();
+}
+}}}
+
+The `set` method for the column will also accept a file path or fFile object and make a copy of the file in the directory specified for the column. When a record is deleted, the file associated with it will be deleted from the directory.
+
+{{{
+#!php
+// This file will be copied into the directory defined
+// in the fORMFile::configureFileUploadColumn() call
+$user->setAttachment('/path/to/a/file.txt');
+}}}
+
+The `get` method for a file upload column will return the fFile object of the file, while the `prepare` and `encode` methods will return just the filename. If the parameter `TRUE` is passed to the `prepare` method, the web server path to the file will be returned—see fFilesystem::addWebPathTranslation() for details about how filesystem paths are mapped to web server paths.
+
+{{{
+#!php
+// The get method will return an fFile or fImage object
+switch ($user->getAttachment()->getMimeType()) {
+    case 'image/png':
+    // …
+}
+
+// This will output the filename safe for HTML
+echo $user->encodeAttachment();
+
+// This will return the web path to the file
+echo $user->prepareAttachment(TRUE);
+}}}
+
+== HTML Form Setup ==
+
+In order to upload a file through an HTML form the `enctype` attribute must be set to `multipart/form-data`. In order for an fActiveRecord class to properly detect a file and move it to the column’s directory, the file upload input must have the same name as the column.
+
+The fORMFile plugin provides functionality where an uploaded file can be remembered even if a validation error happens and a file can be deleted through the use of a checkbox. The existing file hidden input field should be named `existing-column_name` and the delete checkbox should be named `delete-column_name`. Since the delete field is a checkbox, it is recommended to put a hidden field right before it with a value of `0` to ensure the field is always submitted.
+
+{{{
+#!html
+<form action="" method="post" enctype="multipart/form-data">
+    <fieldset>
+        <legend>Add a News Article</legend>
+        ...
+        <p>
+            <label for="news_article-attachment">Attachment</label>
+            <input id="news_article-attachment" type="file" name="attachment" />
+            <?
+            if ($news_article->getAttachment()) {
+                ?>
+                <input type="hidden" name="existing-attachment" value="<?php echo $news_article->encodeAttachment() ?>" />
+                <input type="hidden" name="delete-attachment" value="0" />
+                Existing file: <a href="<?php echo $news_article->prepareAttachment(TRUE) ?>"><?php echo $news_article->prepareAttachment() ?></a>
+                <label for="news_article-delete-attachment">Delete existing attachment</label>
+                <input type="checkbox" id="news_article-delete-attachment" name="delete-attachment" value="1" />
+                <?
+            }
+            ?>
+        </p>
+        ...
+    </fieldset>
+</form>
+}}}
+
+== Adding fUpload Options ==
+
+Since the fUpload class is used to move and validate files that are uploaded, it is possible to configure the fORMFile plugin to call methods on the fUpload object used to move a file. The static method ::addFUploadMethodCall() requires four parameters, the `$class` being configured, the `$column` to apply the option to, the `$method` to call and an array of the `$parameters` to pass to the method.
+
+Below is an example of restricting the file upload size using both client-side restrictions and server-side restrictions. The client-side `MAX_FILE_SIZE` input field prevents the browser from wasting time sending a file that is too large, while the server-side `setMaxSize()` will stop field that are too large and are sent by clients that dont send the `MAX_FILE_SIZE` field. ''Please note that the `MAX_FILE_SIZE` must be less than both the [http://php.net/ini.core#ini.upload-max-filesize upload_max_filesize] and [http://php.net/ini.core#ini.post-max-size post_max_size] ini settings.''
+
+{{{
+#!php
+class NewsArticle extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMFile::configureFileUploadColumn($this, 'attachment', '/path/to/attachment/upload/dir');
+        fORMFile::addFUploadMethodCall($this, 'attachment', 'setMaxSize', array('2mb'));
+    }
+}
+}}}
+
+{{{
+#!html
+<form action="" method="post" enctype="multipart/form-data">
+    <fieldset>
+        <legend>Add a News Article</legend>
+        ...
+        <p>
+            <input type="hidden" name="MAX_FILE_SIZE" value="2097152" />
+            <label for="news_article-attachment">Attachment</label>
+            <input id="news_article-attachment" type="file" name="attachment" />
+            ...
+        </p>
+        ...
+    </fieldset>
+</form>
+}}}
+
+The only restriction for setting fUpload method calls is that the method fUpload::enableOverwrite() is not available since it could lead to two records referencing the same file, which creates issues when one record is deleted.
+
+== Image Upload Columns ==
+
+It is also possible to configure an image upload column, which allows for automatic image processing and automatic rejection of non-image files. The static method ::configureImageUploadColumn() accepts four parameters, the `$class` to configure, the `$column` to store the image name in, the `$directory` to store the files in.
+
+{{{
+#!php
+class NewsArticle extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMFile::configureImageUploadColumn($this, 'photo', '/path/to/photo/upload/dir');
+    }
+}
+}}}
+
+Configuring an image upload column will restrict the uploaded files to the following mime types:
+
+ - `image/gif`
+ - `image/jpeg`
+ - `image/pjpeg`
+ - `image/png`
+
+In addition to checking the mime type supplied by the browser, a server-side check is done to ensure the image type reported by the browser is correct.
+
+== Adding fImage Operations ==
+
+When working with an image upload column, it is possible to add any number of fImage operations to be executed on the image before it is saved in the upload directory. The static method ::addFImageMethodCall() accepts four parameters, the `$class` being configured, the `$column` to add the call to, the fImage `$method` to call and the `$parameters` to pass to it. The operations will be executed in the order they are added.
+
+The following configuration will cause the photo to be cropped and resized to 200x200 pixels.
+
+{{{
+#!php
+class NewsArticle extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMFile::configureImageUploadColumn($this, 'photo', '/path/to/photo/upload/dir');
+        fORMFile::addFImageMethodCall($this, 'photo', 'cropToRatio', array(1, 1));
+        fORMFile::addFImageMethodCall($this, 'photo', 'resize', array(200, 200));
+    }
+}
+}}}
+
+When creating cropped versions of an image, placing the crop operation before the resize operation will almost always create the desired size, while placing them in the opposite order will often lead to images that are too small.
+
+::addFImageMethodCall() can also be used to specify the file type, or specific parameters to using when saving the image. If no call to fImage::saveChanges() is added, it will be called implicitly with default parameters.
+
+The following configuration will always save the image as a JPEG with a quality of `50`.
+
+{{{
+#!php
+class NewsArticle extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMFile::configureImageUploadColumn($this, 'photo', '/path/to/photo/upload/dir');
+        fORMFile::addFImageMethodCall($this, 'photo', 'saveChanges', array('jpg', 50));
+    }
+}
+}}}
+
+== Column Inheritance ==
+
+When uploading images or photos for a site, it is often a requirement to create multiple sizes for display in different layouts. The static method ::configureColumnInheritance() will allow a file to be uploaded to a single column, and will then duplicate the uploaded file into another column. All file duplication is done ''before'' any image operations are executed. If the column being duplicated into is an image upload column with fImage operations, those will be executed on the duplicated file.
+
+`configureColumnInheritance()` accepts three parameters, the `$class` being configured, the `$column` to inherit the uploaded file, and the `$inherit_from_column` which will act as the source column. It is possible to set up multiple columns to inherit from a single master column.
+
+The following example shows small and medium thumbnail columns both inheriting from the main photo column. The upload form for this record would only require that the user upload a single master photo.
+
+{{{
+#!php
+class NewsArticle extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMFile::configureImageUploadColumn($this, 'photo', '/path/to/photo/upload/dir', 'jpg');
+        fORMFile::addFImageMethodCall($this, 'photo', 'resize', array(600, NULL));
+
+        fORMFile::configureImageUploadColumn($this, 'photo_medium', '/path/to/photo_medium/upload/dir', 'jpg');
+        fORMFile::addFImageMethodCall($this, 'photo_medium', 'resize', array(200, NULL));
+        fORMFile::configureColumnInheritance($this, 'photo_medium', 'photo');
+        
+        fORMFile::configureImageUploadColumn($this, 'photo_small', '/path/to/photo_small/upload/dir', 'jpg');
+        fORMFile::addFImageMethodCall($this, 'photo_small', 'resize', array(100, NULL));
+        fORMFile::configureColumnInheritance($this, 'photo_small', 'photo');
+    }
+}
+}}} 

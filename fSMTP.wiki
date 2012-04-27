@@ -1,0 +1,66 @@
+= fSMTP =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fSMTP Class Documentation]'''
+ - [/api/fSMTP API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fSMTP.php Source Code]
+
+<<toc bare>>
+
+== Email Classes <<toc skip>> ==
+ - fEmail
+ - fMailbox
+ - '''fSMTP'''
+)))
+
+The fSMTP class allows for sending emails with fEmail via an SMTP server. It supports multiple authentication methods, secure connections (including via `STARTTLS`) and increased sending performance via SMTP pipelining.
+
+== Instantiation ==
+
+Creating an SMTP connection can be as simple as passing the IP address or hostname of the `$server`.
+
+{{{
+#!php
+$smtp = new fSMTP('example.com');
+}}}
+
+In addition to the `$server`, it is also possible to specify the `$port`, if the connection is `$secure` and the `$timeout`.
+
+{{{
+#!php
+// This sets up fSMTP to connect to the gmail SMTP server
+// with a 5 second timeout. Gmail requires a secure connection.
+$smtp = new fSMTP('smtp.gmail.com', 465, TRUE, 5);
+}}}
+
+Secure connections require the [http://php.net/openssl openssl extension]. If a secure connection is not requested, but the SMTP server provides `STARTTLS` functionality, fSMTP will automatically upgrade the connection to be secure.
+
+== Authentication ==
+
+fSMTP also supports SMTP authentication. Simple pass a `$username` and `$password` to ::authenticate(). This should be called before trying to send any emails.
+
+{{{
+#!php
+$smtp->authenticate('username', 'password');
+}}}
+
+Behind the scenes, there are four authentication methods supported: digest-md5, cram-md5, plain and login. The more secure digest-md5 and cram-md5 methods will be used if possible since they do not send login credentials in the clear.
+
+== Sending Messages ==
+
+Sending messages via fEmail and fSMTP is extremely simple, just pass the fSMTP object to fEmail::send():
+
+{{{
+#!php
+$email->send($smtp);
+}}}
+
+== Closing the Connection ==
+
+The connection to the SMTP server will be automatically closed at the end of the script. If there is a need to close it before then, simply call ::close().
+
+{{{
+#!php
+$smtp->close();
+}}}

@@ -1,0 +1,914 @@
+= fRecordSet =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fRecordSet Class Documentation]'''
+ - [/api/fRecordSet API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fRecordSet.php Source Code]
+
+<<toc bare>>
+
+== ORM Classes <<toc skip>> ==
+ - fActiveRecord
+ - '''fRecordSet'''
+
+ - fORM
+ - fORMColumn
+ - fORMDatabase
+ - fORMDate
+ - fORMFile
+ - fORMJSON
+ - fORMMoney
+ - fORMOrdering
+ - fORMRelated
+ - fORMSchema
+ - fORMValidation
+)))
+
+The fRecordSet class provides functionality to load sets of fActiveRecord objects from the database and manipulate them.
+
+Since the class contains quite a number of features and handles finding data even with complex database schemas, having an example database schema to reference is important. The following database tables will be used as the basis for the examples on this page:
+
+{{{
+#!sql
+CREATE TABLE groups (
+    name VARCHAR(100) PRIMARY KEY
+);
+ 
+CREATE TABLE users (
+    user_id SERIAL PRIMARY KEY,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(100) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    address VARCHAR(255) NOT NULL,
+    city VARCHAR(100) NOT NULL,
+    state VARCHAR(2) NOT NULL,
+    zip_code VARCHAR(10) NOT NULL,
+    date_created TIMESTAMP NOT NULL,
+    last_login TIMESTAMP NOT NULL,
+    status VARCHAR(20) NOT NULL CHECK(status IN ('Active', 'Inactive'))
+);
+ 
+CREATE TABLE users_groups (
+    group VARCHAR(100) NOT NULL REFERENCES groups(name) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    PRIMARY KEY (group, user_id)
+);
+ 
+CREATE TABLE favorites (
+    favorite_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    url VARCHAR(255) NOT NULL
+);
+ 
+CREATE TABLE resources (
+    resource_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    owner INTEGER NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT
+);
+ 
+CREATE TABLE read_permissions (
+    resource_id INTEGER NOT NULL REFERENCES resources(resource_id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    PRIMARY KEY (resource_id, user_id)
+);
+
+}}}
+
+== Creation ==
+
+Record sets can be created from simple condition arrays, SQL statements, or [/docs/fActiveRecord#BuildingandCounting from an fActiveRecord class]. Under the majority of circumstances, the shorthand condition array method provides for an efficient and expressive method to build a record set.
+
+=== From Conditions ===
+
+The static method ::build() accepts between one and five parameters to build a record set. The only required parameter is the first, `$class`, which specified the type of record to build. Passing on this parameter will cause ''all'' records of that type to be created in the set.
+
+{{{
+#!php
+$users = fRecordSet::build('User');
+}}}
+
+The second parameter is the array of `$where_conditions`. This parameter accepts an array that contains columns and operaters as the key and the value(s) to match as the value. A simple example of matching all users with a status of `Active` is shown below:
+
+{{{
+#!php
+$active_users = fRecordSet::build(
+    'User',
+    array('status=' => 'Active')
+);
+}}}
+
+Each `key => value` pair in the conditions array represents a single expression that will be joined by `AND` logic to create there `WHERE` clause. It is also possible, with slightly different syntax, to create simple `OR` conditions and use aggregate functions in the `HAVING` clause.
+
+==== Column Specifications ====
+
+The column name can be any column in the record being created, or can be columns in related records. The following example would select users in a group with the name `Administrators`:
+
+{{{
+#!php
+$administrators = fRecordSet::build(
+    'User',
+    array('groups.name=' => 'Administrators')
+);
+}}}
+
+It is also possible to specify columns in a table that is twice-removed from the record being created. The following example would create the groups that contain users who have a favorite including `http://example.com`:
+
+{{{
+#!php
+$groups = fRecordSet::build(
+    'Group',
+    array('users=>favorites.url=' => 'http://example.com')
+);
+}}}
+
+When there is more than one relationship between two tables, the relationship route can be specified by putting it in `{}` after the table name. For example, the following SQL would select all users who are the owner of a resource called `money`:
+
+{{{
+#!php
+$owners = fRecordSet::build(
+    'User',
+    array('resources{owner}.name=' => 'money')
+);
+}}}
+
+==== Operators ====
+
+All of the examples in the column specification section above use a simple equation operator, `=`. The following is a list of all supported operators:
+
+ - `=` - equal
+ - `!` - not equal
+ - `<` - less than
+ - `<=` - less than or equal to
+ - `>` - greater than
+ - `>=` - greater than or equal to
+ - `~` - `LIKE '%value%'` match
+ - `!~` - `NOT LIKE '%value%'` match
+ - `^~` - `LIKE 'value%'` match
+ - `$~' - `LIKE '%value'` match
+
+All seven operators work with any single value, and will properly handle the SQL variations needed—such as `=` becoming `IS` for `NULL` values. Below are some examples:
+
+{{{
+#!php
+// All users with any name but John
+$users = fRecordSet::build('User', array('first_name!' => 'John'));
+
+// Any user created before 2008
+$users = fRecordSet::build('User', array('date_created<' => '2008-01-01'));
+
+// Any resource that include blue in the name
+$resources = fRecordSet::build('Resource', array('name~' => 'blue'));
+}}}
+
+The `=`, `!`, `~` and `!~` operators also support comparison with an array of values. The following example will find all users with the first name `James` or `John`:
+
+{{{
+#!php
+$users = fRecordSet::build(
+    'User',
+    array('first_name=' => array('James', 'John'))
+);
+}}}
+
+This example will return all users with a name like `Joe` or `Fred`:
+
+{{{
+#!php
+$users = fRecordSet::build(
+    'User',
+    array('first_name~' => array('Joe', 'Fred'))
+);
+}}}
+
+It is also possible to do `~` matching over multiple columns. If a single string value is set for such a condition, it will be parsed for individual words and quoted phrases. In addition, stop words (such as "the" and "a") will be removed from the parsed words and punctuation will be stripped from the beginning and end of each word parsed.
+
+The following example would find any users that contained `john`, `smith` and `west peabody` in any combination of the `first_name`, `last_name`, `address` and `city` columns:
+
+{{{
+#!php
+$users = fRecordSet::build(
+    'User',
+    array('first_name|last_name|address|city~' => 'john "west peabody" smith.')
+);
+}}}
+
+If another method of parsing search terms is required, it is also possible to specify the value of the conditions as an array of string to match. In this case no further parsing will be done.
+
+There are two other operators available that work with multiple values, the `&~` (AND LIKE) and `><` (intersection) operators.
+
+`&~` accepts two or more `LIKE` patterns and requires that each values match ''every'' pattern. The example below would require that the person’s email include both `example.com` and `john`:
+
+{{{
+#!php
+$users = fRecordSet::build(
+    'User',
+    array('email&~' => array('example.com', 'john'))
+);
+}}}
+
+The intersection operator works with ranges of values, so it is really only applicable to date/time and numeric fields. It requires two columns in the database table and two values to compare with. If the range of values in the two database columns in any way intersects the range between the two values specified, a match will be made.
+
+For example, if there is an events table in the database that has a start and end date, it is possible to find any single or multi-day events that will occur during the next week with the following code:
+
+{{{
+#!php
+$events = fRecordSet::build(
+    'Event',
+    array('start_date|end_date><' => array(new fDate(), new fDate('+7 days')))
+);
+}}}
+
+==== OR Conditions ====
+
+While adding `key => value` pairs to the conditions array always joins the conditions using `AND` logic, it is possible to create simple `OR` conditions too. If the array key is two or more column specifications with operators, separated by `|`, and the value is an array of values equal in size to the number of column specifications, an `OR` condition will be created.
+
+The following example will return all users with the first name `John` or that were created after January 1st, 2008:
+
+{{{
+#!php
+$users = fRecordSet::build(
+    'User',
+    array('first_name=|date_created>' => array('John', '2008-01-01'))
+);
+}}}
+
+These `OR` conditions don’t have any technical restrictions, however may become unwieldy to maintain if they are too complex. 
+
+==== Aggregate Functions ====
+
+Aggregate functions are supported in place of single columns for all operators in the conditions array. Currently the aggregate functions `AVG()`, `COUNT()`, `MAX()`, `MIN()` and `SUM()` are supported. The following example will return all users who are part of two or more groups:
+
+{{{
+#!php
+$users = fRecordSet::build(
+    'User',
+    array('count(groups.name)>=' => 2)
+);
+}}}
+
+Conditions using aggregate functions will be automatically placed into the `HAVING` clause of the query that is executed.
+
+==== Comparing Columns ====
+
+In addition to being able to compare columns to values, it is also possible to compare two columns with each other. These comparisons use a slight modified version of the standard operators, where a `:` is appended.
+
+ - `=:` - compare equality of two columns
+ - `!:` - compare inequality of two columns
+ - `<:` - if the first column is less than the second
+ - `<=:` - if the first column is less than or equal to the second
+ - `>:` - if the first column is greater than the second
+ - `>=:` - if the first column is greater than or equal to the second
+
+{{{
+#!php
+// Find users who have only ever logged in when they created their account
+$users = fRecordSet::build(
+    'User',
+    array('date_created=:' => 'last_login')
+);
+}}}
+
+It is also possible to use the column comparison operators with aggregate functions.
+
+==== Ordering ====
+
+When building a record set from conditions, it is also possible to pass an array of `$order_bys` to specify the order in which the records are returned. The `$order_bys` parameter is an associative array of the column name, or expression, to order by as the key, and the direction to sort as the value.
+
+The following example sort the users by their status, in an ascending manner:
+
+{{{
+#!php
+$users = fRecordSet::build(
+    'User',
+    array('status=' => 'Active'),
+    array('status' => 'asc')
+);
+}}}
+
+In addition to being able to sort by columns, it is also possible to sort by expressions, such as `CASE` statements, and by aggregate functions, such as `COUNT()`, on related tables. The following example sorts by the number of groups the user is part of in a descending manner:
+
+{{{
+#!php
+$users = fRecordSet::build(
+    'User',
+    array('status=' => 'Active'),
+    array('count(groups.name)' => 'desc')
+);
+}}}
+
+=== From Records ===
+
+In certain situations it may be necessary to create a record set from record objects that have already been loaded from the database. The method ::buildFromArray() requires two parameters, the `$class` of record to create the set for and an array of `$records` to put in the set.
+
+{{{
+#!php
+$users = fRecordSet::buildFromArray('User', array($user1, $user2, $user3));
+}}}
+
+==== Pagination ====
+
+It is possible to pass information for use with pagination as the `$total_records`, `$limit` and `$page` parameters. These values power the methods ::getLimit(), ::getPage() and ::getPages(). ''The actual pagination of the records should either be done before the array is passed, or via the ::slice() method.''
+
+{{{
+#!php
+$users = fRecordSet::buildFromArray(
+    'User',
+    array($user1, $user2, $user3),
+    8, // $total_records
+    3, // $limit
+    1  // $page
+);
+}}}
+
+==== Different Record Classes ====
+
+With `buildFromArray()` it '''is''' possible to create a record set from two or more different types of records. To create such a set, the `$class` parameter should be changed to an array containing each class name and the `$records` array should contain the different objects.
+
+Please note that creating a record set from more than one kind of record will disable certain manipulation methods, such as retrieving primary keys and preloading related data. The [#Manipulation section on manipulation] contains details about what methods and features are unavailable in such a circumstance.
+
+{{{
+#!php
+$calendar_objects = fRecordSet::buildFromArray(
+    array('Event', 'Meeting'),
+    array($event1, $meeting1, $event2, $event3)
+);
+}}}
+
+=== From SQL ===
+
+There are a number of limitations when using a conditions array to create a record set. Specific types of `JOIN` operations, `GROUP BY` clauses and `OR` conditions are impossible, or can not be tailored to the situation. In such instances, the ::buildFromSQL() method allows a raw [/docs/FlourishSql Flourish SQL] statement to be passed as the source for the records.
+
+The first parameter is the `$class` of records to create and the second is the `$sql` to retrieve the records' data.
+
+{{{
+#!php
+$users = fRecordSet::buildFromSQL(
+    'User',
+    "SELECT users.* FROM users WHERE (first_name = 'John' AND last_name = 'Smith') OR date_created < '2008-01-01'"
+);
+}}}
+
+The SQL statement passed to `buildFromSQL()` should select every column for the table for the record type specified. It will often also be desired to ensure that statements using `JOIN`s along many-to-many relationships have an appropriate `GROUP BY` clause to ensure that duplicate records are not returned.
+
+==== Limit Clauses/Pagination ====
+
+If a `LIMIT` clause is used in the SQL passed to `buildFromSQL()`, it is recommended to pass a third parameter, `$non_limited_count_sql`, containing a SQL query that will return the number of rows that would be returned if no `LIMIT` clause was present. This additional SQL statement powers the functionality of `->count(TRUE)`, which counts the number of records that would be returned with no `LIMIT` clause.
+
+In addition to the `$non_limited_count_sql`, the `$limit` and `$page` parameters should be passed to power the ::getLimit(), ::getPage() and ::getPages() methods.
+
+{{{
+#!php
+$users = fRecordSet::buildFromSQL(
+    'User',
+    "SELECT * FROM users LIMIT 5",
+    "SELECT count(*) FROM users",
+    5, // $limit
+    1  // $page
+);
+}}}
+
+==== Escaping Values into SQL ====
+
+When using ::buildFromSQL(), you will usually need to include one or more dynamic values. Instead of passing a SQL string to `$sql` or `$non_limited_count_sql`, an array may be passed that contains a SQL string plus any values to escape into it.
+
+{{{
+#!php
+$users = fRecordSet::buildFromSQL(
+    'User',
+    array("SELECT * FROM users WHERE date_created > %d LIMIT %i", $start_date, 5),
+    array("SELECT count(*) FROM users WHERE date_created > %d", $start_date),
+    5, // $limit
+    1  // $page
+);
+}}}
+
+=== From Call and Map ===
+
+Results from both [#Call call] and [#Map map] operations can be turned into record sets by the ::buildFromCall() and ::buildFromMap() methods. These methods take the exact same parameters as ::call() and ::map(), but take a resulting array of fActiveRecord objects and turn them into an fRecordSet.
+
+{{{
+#!php
+// This creates a record set of the owners for a set of
+// resources by calling createUser() on each resource
+$owners = $resources->buildFromCall('createUser');
+
+// This uses a function to create a record
+function make_record($class, $primary_key)
+{
+    return new $class($primary_key);
+}
+$owners = $resources->buildFromMap('make_record', 'User', '{record}::getOwner');
+}}}
+
+=== From Related Records ===
+
+When two classes are related to each other through another table, building a record set from related records is often the easiest way to get what you are looking for. While is is possible to use ::buildFromCall() with a `createRelatedRecord()` method from the fActiveRecord class, there is a built-in dynamic `build` method that does all of this for you.
+
+{{{
+#!php
+// Creating owners manually
+$owners = $resources->buildFromCall('createUser');
+
+// Creating them from the dynamic build method
+$owners = $resources->buildUsers();
+}}}
+
+The dynamic `build` methods also take advantage of the [#PreloadingRelatedRecords preloading] functionality to improve database performance.
+
+== Record Access ==
+
+There are a number of different ways that records can be retrieved from a record set.
+
+=== Iteration ===
+
+One of the most basic operations for a record set is iteration. Just like an array, an fRecordSet can be used with a `foreach` loop to access each record sequentially.
+
+{{{
+#!php
+foreach ($records as $record) {
+    // Do something with the record
+}
+}}}
+
+=== Individual Records ===
+
+The method ::getRecord() will return the record at the index specified. This is good for retrieving a single record out of the set, but will throw an fNoRemainingException if there is no record to fetch.
+
+{{{
+#!php
+$first_record = fRecordSet::build('User')->getRecord(0);
+}}}
+
+It is also possible to use array-style referencing to accomplish the same result as ::getRecord().
+
+{{{
+#!php
+$first_record = $record_set[0];
+}}}
+
+=== All Records ===
+
+To retrieve an array of all records in the set, simply call the method ::getRecords().
+
+{{{
+#!php
+$records = $record_set->getRecords();
+}}}
+
+== Metadata Access ==
+
+In addition to retrieving the record from a record set, other information about the set and records is available.
+
+=== Size ===
+
+The size of a record set can often be important since it affect if code can be executed or not. The ::count() method gives a simple total containing the number of records in the set:
+
+{{{
+#!php
+if ($records->count()) {
+    echo 'Records were found!';
+}
+}}}
+
+In the situation that a record set is actually a `LIMIT`ed number of records from the full query results, a single `TRUE` value can be passed to ::count() to retrieve the total number of records that exist.
+
+{{{
+#!php
+echo $records->count() . ' records displayed, ' . $records->count(TRUE) . ' records total';
+}}}
+
+It is also possible to throw an exception if no records are contained in a set. The method ::tossIfEmpty() will throw an fEmptySetException if called on a record set with zero records. By default the exception will contain a message indicating that no matching records could be found. It is possible to set a custom message by passing it as the first parameter to `tossIfEmpty()`.
+
+{{{
+#!php
+// Throw a general exception message if no records were found
+try {
+    $records->tossIfEmpty()
+} catch (fEmptySetException $e) {
+    $e->printMessage();
+}
+
+// Throw a specific exception message
+try {
+    $records->tossIfEmpty('No active users could be found')
+} catch (fEmptySetException $e) {
+    $e->printMessage();
+}
+}}}
+
+=== Limit ===
+
+If a limit was specified when calling ::build(), it will be available from ::getLimit().
+
+{{{
+#!php
+$limit = $record_set->getLimit();
+}}}
+
+=== Page/Pages ===
+
+If a limit was specified when calling ::build(), it will be available from ::getPage().
+
+{{{
+#!php
+$page = $record_set->getPage();
+}}}
+
+The number of pages will be available from ::getPages().
+
+{{{
+#!php
+$total_pages = $record_set->getPages();
+}}}
+
+=== Primary Keys ===
+
+If only the primary keys of the records are needed, the method ::getPrimaryKeys() does just that.
+
+{{{
+#!php
+$primary_keys = $record_set->getPrimaryKeys();
+}}}
+
+=== Class Names ===
+
+The method ::getClass() will return the class (or classes) of the record in the record set.
+
+{{{
+#!php
+if ($record_set->getClass() == 'Example') {
+    // ...
+}
+}}}
+
+== Manipulation ==
+
+Once a record set has been created, it can be manipulated in a number of different ways to retrieve information. A number of array-like functions are built into the class, and there is support for the map, reduce and filter operations common in functional programming.
+
+=== Map, Reduce, Filter and Call ===
+
+The map, reduce and filter operations are declarative constructs that are common in functional programming. [http://en.wikipedia.org/wiki/Map_(higher-order_function) Map] applies a function or method to a set of records and returns the results. [http://en.wikipedia.org/wiki/Filter_(higher-order_function) Filter] applies a function/method to each record and uses the return value to determine if a record should be removed. [http://en.wikipedia.org/wiki/Fold_(higher-order_function) Reduce] uses a function/method to convert all records into a single value via an iterative process of passing two values to the function at a time. Call is a feature implemented on fRecordSet that is not normally included with map, reduce and filter. Call allows a method to be called on every object in the record set, returning all of the values as an array.
+
+==== Map ====
+
+PHP include a built-in [http://php.net/array_map `array_map()`] function that allows an array of values to be passed to a callback. This works great for callbacks that require only one parameter, however if two or more parameters are required then all parameters must be arrays of equal length. In practical terms, this requires heavy usage of [http://php.net/array_fill `array_fill()`] and leads to code that is a pain to write and difficult to read.
+
+The ::map() method in fRecordSet provides some features to reduce the extra work. By default when calling `map()`, each record will be passed to the callback as the first parameter.
+
+{{{
+#!php
+function convert_records($record)
+{
+    return new ArrayObject($record);
+}
+
+$array_objects = $record_set->map('convert_records');
+}}}
+
+If the callback takes more than one parameter, extra parameters can be passed to `map()`. Any parameter that is not an array will automatically be converted, so there is no need to calls to `array_fill()`. The example below would cause the `$upper` parameter to be set to `TRUE` for every record.
+
+{{{
+#!php
+function camel_case($record, $upper)
+{
+    return fGrammar::camelize($record->getName(), $upper);
+}
+
+$names = $record_set->map('camel_case', TRUE);
+}}}
+
+Another important feature is that the output of a method call to each record can be passed to the callback by passing a string such as `'{record}::methodName'`. If this is the case, the record will not be automatically passed as the first parameter. The example below will cause the output of the `getFirstName()` method to be passed to fUTF8::lower():
+
+{{{
+#!php
+$names = $record_set->map('fUTF8::lower', '{record}::getFirstName');
+}}}
+
+It is also possible to pass the complete record (as opposed to just the output of a method) in a position other than the first parameter by passing `'{record}'`.
+
+{{{
+#!php
+function camel_case($upper, $record)
+{
+    return fGrammar::camelize($record->getName(), $upper);
+}
+
+$names = $record_set->map('camel_case', TRUE, '{record}');
+}}}
+
+==== Reduce ====
+
+The ::reduce() method accepts a callback that accepts two values and iteratively performs an operation on the result of the last operation plus the next record. It uses the same dynamics as the function [http://php.net/array_reduce `array_reduce()`], except that the initial value can be of any data type.
+
+The first call to the callback will pass `NULL` as the first parameter and the first record as the second parameter. All subsequent calls will pass the result of the last call as the first parameter and the next record as the second parameter.
+
+{{{
+#!php
+function add_products($tally, $next_record)
+{
+    return $tally + $next_record->getPrice();
+}
+$sum = $record_set->reduce('add_products');
+}}}
+
+It is also possible to seed the operation with an initial value other than `NULL` by passing it as the second parameter to `reduce()`.
+
+{{{
+#!php
+function concat_names($string, $next_record)
+{
+    return $string . ' ' . $next_record->getName();
+}
+$names = $record_set->reduce('concat_names', 'Names:');
+}}}
+
+==== Filter ====
+
+The ::filter() method allows for creating a new record set by removing records from the existing set by checking with a callback, testing the result of a method call on the record, or by comparing with a conditions array. It functions almost identically to [http://php.net/array_filter `array_filter()`], except for supporting other methods of checking beyond a simple callback.
+
+In the most basic form, a callback is passed and each record is passed one at a time to the callback. If the callback returns a value equal to `FALSE` the record will not be copied to the new record set. 
+
+{{{
+#!php
+function check_name($record)
+{
+    return (boolean) $record->getName();
+}
+$users_with_name = $record_set->filter('check_name');
+}}}
+
+It is also possible to filter a record set based on the return value of a method. This is accomplished by passing a string in the form `'{record}::methodName'`. The example below will remove all users with no middle initial:
+
+{{{
+#!php
+$users = $record_set->filter('{record}::getMiddleInitial');
+}}}
+
+As a final option, it is also possible to filter records based on whether or not they match all of the conditions in a conditions array. The conditions array should contain keys that are method names followed by a comparison operator and values to make the comparison with. Below is an example of checking to see if a user’s status is `'Active'`:
+
+{{{
+#!php
+$active_users = $record_set->filter(array('getStatus=' => 'Active'));
+}}}
+
+The following operators are supported for values that are not arrays:
+
+ - `=`: If the output of the method equals the value
+ - `!`: If the output of the method does not equal the value
+ - `>`: If the output of the method is greater than the value
+ - `>=`: If the output of the method is greater than or equal to the value
+ - `<`: If the output of the method is less than the value
+ - `<=`: If the output of the method id less than or equal to the value
+ - `~`: If the output of the method contains the value (case insensitive)
+ - `!~`: If the output of the method does not contain the value (case insensitive)
+
+If the value is an array, the following operators are supported:
+
+ - `=`: If the output of the method is contained in the array
+ - `!`: If the output of the method is not contained in the array
+ - `~`: If the output of the method contains one of the values in the array (case insensitive)
+ - `!~`: If the output of the method contains none of the values in the array (case insensitive)
+ - `&~`: If the output of the method contains all of the values in the array (case insensitive)
+
+The following example will filter out any users who don’t have the first name `John`, who don’t have the last name `Smith` or `Henry` or who were created on or before January 1st, 2008.
+
+{{{
+#!php
+$users = $record_set->filter(
+    array(
+        'getFirstName='   => 'John',
+        'getLastName='    => array('Smith', 'Henry'),
+        'getDateCreated>' => '2008-01-01'
+    )
+);
+}}}
+
+It is also possible to do a search through the output of multiple method using the `~` operator. Method names should be separated by the `|` character.
+
+If the value is a string, it will be parsed as search terms, which allows for quoted phrases, will removed punctuation from words and will ignore stop words (such as "the' and "a"). If the only words found are stop words, they will be included. If the value is an array, the strings in the array will be searched for.
+
+The following example will find all users who have the words and phrases `john`, `smith` and `west peabody` in the output of any combination of `getFirstName()`, `getLastName()`, `getAddress()` and `getCity()`:
+
+{{{
+#!php
+$users = $record_set->filter(
+    array('getFirstName|getLastName|getAddress|getCity~' => 'John Smith "west peabody"')
+);
+}}}
+
+It is possible to perform an `OR` comparison using `|` separated list of method names with operators and the value to be an array of values, with one for each method. For example, the following code will check if `getFirstName()` returns `John` or `getEmailAddress()` contains `smith.com`:
+
+{{{
+#!php
+$users = $record_set->filter(
+    array('getFirstName=|getEmailAddress~' => array('John', 'smith.com'))
+);
+}}}
+
+The last supported operator in the intersection operator `><`. This operator checks to see if two columns that form a range intersect in any way with two values that form a range. This is most useful for dates, but can be used with numbers too.
+
+The following example checks to see if `getStartDate()` and `getEndDate()` form a date range that includes any days between January 1, 2010 and January 3, 2010:
+
+{{{
+$users = $record_set->filter(
+    array('getStartDate|getEndDate><' => array(new fDate('2010-01-01'), new fDate('2010-01-03')))
+);
+}}}
+
+The optional boolean second parameter, `$remember_original_count`, will save the number of records in the current record set as the non-limited count on the new set. See the section on [#Size Size] for details about how to retrieve this number.
+
+{{{
+#!php
+$users = $record_set->filter('{record}::getMiddleInitial', TRUE);
+}}}
+
+==== Call ====
+
+The ::call() method of fRecordSet returns an array of the return values from a call to a method on each record in the set. The first parameter is a string with the method to call.
+
+{{{
+#!php
+$first_names = $record_set->call('getFirstName');
+}}}
+
+It is also possible to pass parameters to the method by adding them to the `call()` method. The following example will pass `TRUE` to each call of the method `prepareLink()`:
+
+{{{
+#!php
+$links = $record_set->call('prepareLink', TRUE);
+}}}
+
+=== Preloading Related Records ===
+
+While the fRecordSet class uses a minimal number of database queries to fetch a set of records, in turn getting records related to each of those will cause at least one database query to be executed per record. The three actions `prebuild`, `precount` and `precreate` all allow for running a single database query to fetch records related to every record in the set.
+
+For example, if a record set of users needs to be displayed included how many comments they have left on a blog, the blog comments for each will need to be counted. Normally a call to `countBlogComments()` be all that is necessary. However, if 100 users are displayed on a page then an additional 100 database queries would be performed. Calling `precountBlogComments()` on the record set would cause a single database query to be executed to collect the counts for each user.
+
+{{{
+#!php
+// Count related comments for ever user in a single query
+$record_set->precountBlogComments();
+}}}
+
+The `prebuild` method action would be appropriate to call when it is necessary to build a set of related records that are in a many-to-many or one-to-many.
+
+{{{
+#!php
+$record_set->prebuildBlogComments();
+foreach ($record_set as $record) {
+    $comments = $record_set->buildBlogComments();
+}
+}}}
+
+The `precreate` method action allows creating objects from a column that is part of a `FOREIGN KEY` constraint.
+
+{{{
+#!php
+$record_set->precreateStates();
+foreach ($record_set as $record) {
+    echo $record->createState()->prepareName();
+}
+}}} 
+
+=== Slice, Merge, Diff, Intersect, Unique and Contains Operations ===
+
+In a manner similar to arrays, an fRecord contains quite a number of methods to add, remove and change records in a record set.
+
+==== `slice()` ====
+
+The ::slice() method takes up to two parameters, the zero-based `$offset` to start slicing at and the `$length` of a slice to make. If the `$offset` is negative, the slice will start that many records from the end of the set. If the `$length` is negative, the slice will stop that many records from the end of the set. If the `$length` is omitted or `NULL`, all records until the end of the set will be returned.
+
+The following will create a new record set from the first three records.
+
+{{{
+#!php
+$new_set = $record_set->slice(0, 3);
+}}}
+
+The optional boolean third parameter, `$remember_original_count`, will save the number of records in the current record set as the non-limited count on the new set. See the section on [#Size Size] for details about how to retrieve this number.
+
+{{{
+#!php
+$new_set = $record_set->slice(0, 3, TRUE);
+}}}
+
+''If `$remember_original_count` is `TRUE` and the slicing is done in such a way that a valid `$limit` and `$page` can be determined, they will be appropriately set on the new record set.''
+
+==== `merge()` ====
+
+The ::merge() method accepts a single parameter, the `$records`, and returns a new record set containing all records from both. All of the records from the second record set will be found after the records from the first. The `$records` parameter will accept an fRecordSet, an array of fActiveRecord objects or a single fActiveRecord.
+
+Please note that it ''is'' possible to merge records sets of different types of records. If a record set contains records of more than one class, however, the `prebuild`, `precount` and `precreate` method actions will be unavailable, along with the methods `getPrimaryKeys()`, `flagAssociate()` and `isFlaggedForAssociation()`.
+
+{{{
+#!php
+$events_and_meetings = $events->merge($meetings);
+}}}
+
+==== `diff()` ====
+
+The ::diff() method accepts a single parameter, the `$records` to remove from the current record set. The `$records` parameter will accept an fRecordSet, an array of fActiveRecord objects or a single fActiveRecord.
+
+{{{
+#!php
+$active_events = $events->diff($inactive_events);
+}}}
+
+The optional boolean second parameter, `$remember_original_count`, will save the number of records in the current record set as the non-limited count on the new set. See the section on [#Size Size] for details about how to retrieve this number.
+
+{{{
+#!php
+$active_events = $events->diff($inactive_events, TRUE);
+}}}
+
+==== `intersect()` ====
+
+The ::intersect() method accepts a single parameter, the `$records` to create an intersection with the current record set. All records not in both will be removed. The `$records` parameter will accept an fRecordSet, an array of fActiveRecord objects or a single fActiveRecord.
+
+{{{
+#!php
+$our_free_days = $my_free_days->intersect($your_free_days);
+}}}
+
+The optional boolean second parameter, `$remember_original_count`, will save the number of records in the current record set as the non-limited count on the new set. See the section on [#Size Size] for details about how to retrieve this number.
+
+{{{
+#!php
+$our_free_days = $my_free_days->intersect($your_free_days, TRUE);
+}}}
+
+==== `unique()` ====
+
+The ::unique() method takes the current record set and removes all duplicate records, returning a new record set.
+
+{{{
+#!php
+$sessions = $sessions->unique();
+}}}
+
+The optional boolean parameter, `$remember_original_count`, will save the number of records in the current record set as the non-limited count on the new set. See the section on [#Size Size] for details about how to retrieve this number.
+
+{{{
+#!php
+$sessions = $sessions->unique(TRUE);
+}}}
+
+=== Chunk and Split Operations ===
+
+For display purposes, it can be useful to segment an fRecordSet into multiple smaller fRecordSet objects. The ::chunk() and ::split() methods to exactly this.
+
+==== `chunk()` ====
+
+The ::chunk() method accepts a `$number` of records to place in each resulting fRecordSet. The returned value will be an array of fRecordSet objects that each contain `$number` records, although the last one may have fewer if there are not enough to fill it.
+
+{{{
+#!php
+// This statement will segment 10 users into 4 records sets containing 3, 3, 3 and 1 users respectively
+$sets = $users->chunk(3);
+}}}
+
+==== `split()` ====
+
+The ::split() method accepts a `$number` of fRecordSet objects to return. The returned value will be an array of fRecordSet objects that each contain `ceil(total records/$number)` records, although the last set may have fewer if there are not enough to fill it.
+
+{{{
+#!php
+// This statement will split 10 users into 3 records sets containing 4, 4 and 2 users respectively
+$sets = $users->split(3);
+}}}
+
+=== Checking for a Record ===
+
+The ::contains() method accepts a single fActiveRecord record and checks if is is present in the record set.
+
+{{{
+#!php
+if ($users->contains($user)) {
+    // ...
+}
+}}}
+
+=== Sorting ===
+
+''When building a record set from conditions, the records can be sorted by the `$order_bys` parameter. See the section [#Ordering Ordering] for more details.''
+
+Two methods are available with fRecordSet to reorder the records in the set after it has been created. The method ::sort() accepts two parameters, the `$method` to call to get the value to compare, and the `$direction` to sort those values in. The `$direction` can be either `'asc'` or `'desc'`. The sorting is done using fUTF8::inatcmp() for comparison. A new sorted fRecordSet object is returned.
+
+{{{
+#!php
+$sorted_set = $record_set->sort('getName', 'asc');
+}}}
+
+If a different sorting method is required, the method ::sortByCallback() will be of interest. This method requires a single parameter, a `$callback` that accepts two records and returns a negative value if the first record is less than the second, `0` if they are equal, or a positive value if the first record is greater than the second.
+
+{{{
+#!php
+function method_sort($record_a, $record_b)
+{
+    return strnatcasecmp($record_a->getFirstName(), $record_b->getFirstName());
+}
+
+$sorted_set = $record_set->sortByCallback('method_sort');
+}}}

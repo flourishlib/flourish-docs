@@ -1,0 +1,192 @@
+= fCRUD =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fCRUD Class Documentation]'''
+ - [/api/fCRUD API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fCRUD.php Source Code]
+
+<<toc bare>>
+)))
+
+The fCRUD class is a static class that provides functionality for the CRUD (create, read, update, delete) pages that power most dynamic websites and online applications. The various methods have been implemented to help reduce the amount of code needed to a standard page, letting the developer focus on the unique aspects of sites.
+
+== Sticky Search Values ==
+
+When filtering the objects to display when executing the `list` action for a CRUD page, it will often times be required to remember the filtered values even after the user had edited or deleted an object. While it is possible to pass the filter values around in the URL, it leads to lots of extra code and more complex URLs.
+
+As a solution, the ::getSearchValue() method will always return the last value selected by a user for a given `GET` or `POST` parameter. When a value is pulled out of `GET` or `POST` data, the value is saved in the user’s session. If the user then leaves the page and comes back without a value, the value will be looked up in the session. '''This method should be used in place of fRequest::get().'''
+
+Here is an example of the usage:
+
+{{{
+#!php
+// Get the parameter search_terms from GET, POST or the session
+$search_terms = fCRUD::getSearchValue('search_terms');
+
+// Here $search_terms would be used to filter the objects being displayed
+// The SetCreator class is not a real class, but used as an example
+$results = SetCreator::findUsers($search_terms);
+}}}
+
+In order to provide for accessibility and usability, it is recommended to redirect the user whenever values are pulled from a location other than `GET` data. This way the user can bookmark results, send a link via email, etc. The ::redirectWithLoadedValues() method will take the currently requested URL and will redirect the user to a new URL that includes all of the search values (and sorting values) that were pulled from the session. If no values are pulled from the session, no redirection will happen.
+
+Here is the example above with the redirection code added:
+
+{{{
+#!php
+// Get the parameter search_terms from GET, POST or the session
+$search_terms = fCRUD::getSearchValue('search_terms');
+
+// Redirect the user if any values were loaded from the session
+fCRUD::redirectWithLoadedValues();
+
+// Here $search_terms would be used to filter the objects being displayed
+// The SetCreator class is not a real class, but used as an example
+$results = SetCreator::findUsers($search_terms);
+}}}
+
+== Sortable Columns (Sticky) ==
+
+Having sortable columns on a CRUD page is often a huge usability boost. Unfortunately sortable columns can also be a pain to implement. The fCRUD class provides a few methods to help make it a little easier: ::getSortColumn(), ::getSortDirection(), ::printSortableColumn() and ::getColumnClass().
+
+The ::getSortColumn() takes a single parameter, a `$possible_columns` array, and returns the one specified by the `GET` value for the parameter `sort`. The method also will save the last sort column and will reload it from the session if none is specified in the `GET` data. If neither of these methods can determine the sort column it will default to the first value in the `$possible_columns` array.
+
+::getSortDirection() takes a single parameter, `$default_direction`, and will return the sorting direction specified in the `GET` data for the parameter `dir`. The possible values for `$default_direction` (and the return value) are `'asc'` and `'desc'`. If no value is specified in the `GET` data, it will try to load the last sort direction from the session. If this can not be done the sort direction will default to the values specified in `$default_direction`.
+
+These two methods work with the ::redirectWithLoadedValues() method the same way that ::getSearchValue() does. Here is an example of the three methods being used:
+
+{{{
+#!php
+// Set the users to be sortable by name or email, defaulting to name
+$sort = fCRUD::getSortColumn(array('name', 'email'));
+
+// Set the sorting to default to ascending
+$dir  = fCRUD::getSortDirection('asc');
+
+// Redirect the user if one of the values was loaded from the session
+fCRUD::redirectWithLoadedValues();
+
+// Use the sort column and direction in your code to load the objects in the proper order
+$users = SetCreator::findUsers($sort, $dir);
+}}}
+
+The second step to getting sortable columns on CRUD pages is to create the links to allow sorting. The ::printSortableColumn() method accomplishes this task.
+
+::printSortableColumn() takes two parameters, with the second one being optional. The first is the `$column` to make sortable. This value will be returned when calling ::getSortColumn(). The second, optional, parameter `$column_name` allows you to specify a display name to be used for `$column`. If `$column_name` is not specified, the fGrammar::humanize()ed version of `$column` will be used instead.
+
+::printSortableColumn() prints out an `a` tag containing a link to the current URL with the current query string, except the `sort` and `dir` parameters will be changed to the correct values for the link. If a user clicks a sortable column link that is already sorting the object, the direction will be reversed. In addition, the `a` tag will have the CSS class `sortable_column` applied to it. If the link being created is for the column currently being sorted, a second CSS class `asc` or `desc` will be added to the `a` tag as appropriate. Here is an example of the PHP and corresponding HTML:
+
+{{{
+#!html
+<table>
+    <tr>
+        <th><? fCRUD::printSortableColumn('name') ?></th>
+        <th><? fCRUD::printSortableColumn('email', 'E-Mail') ?></th>
+    </tr>
+    ...
+</table>
+}}}
+
+{{{
+#!html
+<!-- The following HTML is presented as if the name column is currently being sorted ascending -->
+<table>
+    <tr>
+        <th><a href="{current_url}?sort=name&amp;dir=desc" class="sortable_column asc">Name</a></th>
+        <th><a href="{current_url}?sort=email&amp;dir=asc" class="sortable_column">E-Mail</a></th>
+    </tr>
+    ...
+</table>
+}}}
+
+Finally, when displaying the object information it might be nice to include a visual indication of which column is sorted on each row. This way if the user has scrolled so the column headers are out of view, they can still remember which column is being sorted. This can be accomplished by using the ::getColumnClass() method:
+
+{{{
+#!html
+<tr>
+    <td class="<? fCRUD::getColumnClass('name') ?>"><?php echo $object->getName() ?></td>
+    <td class="<? fCRUD::getColumnClass('email') ?>"><?php echo $object->getEmail() ?></td>
+</tr>
+}}}
+
+{{{
+#!html
+<!-- The following HTML is presented as if the name column is currently being sorted ascending -->
+<tr>
+    <td class="sorted">Will</th>
+    <td class="">will@example.com</td>
+</tr>
+}}}
+
+If you are using columns from related tables, simple include the table name and a `.` when passing the column name to ::printSortableColumn() and ::getColumnClass(). To sort by the `name` column in the `groups` table, just use `groups.name`.
+
+== Resetting Sticky Values ==
+
+Since search values and sortable columns are saved in the sessions, whenever a user returns to the page the saved values will be loaded. If you want to allow the user to reset their stored values, simply add a `reset` parameter (without an `=` or a value) to the end of the query string. This will cause all stored values to be erased, and the user to be redirected to the same URL without the `reset` parameter. Here are a couple of examples:
+
+{{{
+#!html
+<!--
+All sticky search values and sorting information would be erased the the user would be redirected to /users/
+-->
+<a href="/users/?reset">Users</a>
+
+<!--
+In this case the user would be redirected to /galleries/?gallery_id=3
+-->
+<a href="/galleries/?gallery_id=3&reset">Gallery</a>
+
+<!--
+This would do nothing since reset is not at the end of the query string
+-->
+<a href="/galleries/?reset&gallery_id=3">Gallery</a>
+
+<!--
+This would do nothing since reset is followed by =. By not allowing an =, we prevent the possibility of
+conflicting with a real query string parameter called reset.
+-->
+<a href="/galleries/?gallery_id=3&reset=">Gallery</a>
+}}}
+
+== Row Colors ==
+
+A common feature for list tables is to include alternating row colors (via CSS) to allow users to track rows across a table. The ::getRowClass() method provides functionality to accomplish this in a dynamic way that will also highlight a row that has just been added or updated.
+
+The method takes two parameters, `$row_value` and `$affected_value`. When these two values are not equal the method will return `'odd'` and `'even'` on an alternating basis. When the two parameters are equal the method will return `highlighted`.
+
+Here is an example of usage:
+
+{{{
+#!php
+$user_id = fRequest::get('user_id');
+$users   = SetCreator::findUsers();
+
+foreach ($users as $user) {
+    ?>
+    <tr class="<?php echo fCRUD::getRowClass($user->getUserId(), $user_id) ?>">
+        <td><?php echo $user->getName() ?></td>
+        <td><?php echo $user->getEmail() ?></td>
+    </tr>
+    <?
+}
+}}}
+
+The output from the above PHP would be:
+
+{{{
+#!html
+<!-- The following HTML is presented as if $user_id = 1 and the user id for Will was 1 -->
+<tr class="odd">
+    <td>Joe</td>
+    <td>joe@example.com</td>
+</tr>
+<tr class="highlighted">
+    <td>Will</td>
+    <td>will@example.com</td>
+</tr>
+<tr class="even">
+    <td>Zach</td>
+    <td>zach@example.com</td>
+</tr>
+}}}

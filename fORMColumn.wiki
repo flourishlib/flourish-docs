@@ -1,0 +1,112 @@
+= fORMColumn =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fORMColumn Class Documentation]'''
+ - [/api/fORMColumn API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fORMColumn.php Source Code]
+
+<<toc bare>>
+
+== ORM Classes <<toc skip>> ==
+ - fActiveRecord
+ - fRecordSet
+
+ - fORM
+ - '''fORMColumn'''
+ - fORMDatabase
+ - fORMDate
+ - fORMFile
+ - fORMJSON
+ - fORMMoney
+ - fORMOrdering
+ - fORMRelated
+ - fORMSchema
+ - fORMValidation
+)))
+
+The fORMColumn class is an ORM plugin to provide miscellaneous additional functionality to individual columns.
+
+== Email Columns ==
+
+The static method ::configureEmailColumn() sets a column to be validated as an email address. The first parameter is the `$class` the column is located in and the second parameter is the `$column`. As with most active record plugins, this method should normally be called from the `configure()` method. 
+
+{{{
+#!php
+class User extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMColumn::configureEmailColumn($this, 'email');
+    }
+}
+}}}
+
+== Link Columns ==
+
+Columns can be configured as a link column by passing the `$class` and `$column` to the static method fORMColumn::configureLinkColumn(). When the record is validated, the link will be checked to make sure it contains a valid domain name, however `http://` is not required. When calling the `prepare` method for the column, it will ensure that the link begings with `http://` for output into a HTML `<a>` tag.
+
+{{{
+#!php
+class NewsArticle extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMColumn::configureLinkColumn($this, 'link');
+    }
+}
+
+$news_article = new NewsArticle();
+$news_article->setLink('www.example.com');
+
+echo $news_article->getLink();
+echo $news_article->prepareLink();
+}}}
+
+The above PHP would output the following:
+
+{{{
+www.example.com
+http://www.example.com
+}}}
+
+== Number Columns ==
+
+While fActiveRecord automatically handles both integer and floating point numbers, sometimes it is necessary to have a column’s value be represented as an fNumber object. The static method ::configureNumberColumn() ensures that values loaded out of the database are automatically converted to an fNumber object. The first parameter is the `$class` and the second parameter is the `$column`.
+
+{{{
+#!php
+class Product extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMColumn::configureNumberColumn($this, 'weight');
+    }
+}
+}}}
+
+== Random Columns ==
+
+In some situations a random string is useful for providing security when resetting passwords, validating email accounts or establishing access authentication. The static method ::configureRandomColumn() will cause a column to be set to a random string when the record is first saved and will allow generating a new random string at any time by calling `generateColumnName()`.
+
+::configureRandomColumn() accepts four parameters, the `$class` to be configured, the `$column`, the `$type` of random string (see fCryptography::randomString() for options) and the `$length` of the string.
+
+{{{
+#!php
+class User extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMColumn::configureRandomColumn($this, 'access_code', 'alphanumeric', 16);
+    }
+}
+
+// Create a new user and get their access code
+$user = new User();
+$user->store();
+$access_code = $user->getAccessCode();
+
+// Generate a new random string for the access code
+$user->generateAccessCode();
+$access_code = $user->getAccessCode();
+}}}

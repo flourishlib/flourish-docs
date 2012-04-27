@@ -1,0 +1,114 @@
+= Server Fund =
+{{{
+#!raw
+<div style="background-color: #DFEDFF; padding: 0.1em 0.9em; margin-bottom: 1em;">
+<p>
+The entire Server Fund amount was raised in just 8 days! A huge thanks to Justin
+Noel who donated almost the entire amount.
+</p>
+<p>
+If you are interested in supporting Flourish in other ways, please visit the
+<a href="/docs/Support">support page</a>
+</p>
+</div>
+}}}
+(((
+== Current Status ==
+{{{
+#!raw
+<p>
+<strong>Total Hardware Cost:</strong> $626.93<br />
+<strong>Amount Raised:</strong> $627.49<br />
+<big><strong>Remaining:</strong> $0.00</big>
+</p>
+}}}
+)))
+
+If you’ve used Flourish and feel like contributing something back to support the
+development, consider making a donation to the server fund.
+
+The current focus of the fund is on providing a new motherboard, CPU, ram (and
+graphics card) to run multiple virtual machines for the purpose of testing
+Flourish. Since one of the goals of Flourish to to provide a portable and
+highly-compatible general purpose library, testing on multiple platforms with
+multiple versions of PHP and databases is essential. Currently the automated
+post-commit SVN testing of Flourish only happens on the current web-server, a
+CentOS 4 box running PHP 5.1.6.
+
+== Current Setup ==
+
+The current hardware being used is rather old, an Athlon XP 2800 processor and
+2GB of ram. It runs 2 virtual machines for testing purposes on top of VMWare
+Server:
+
+ - '''Windows XP''': PHP 5.2.9, SQL Server 2005 Express, SQL Server 2008 Express
+ - '''Ubuntu 9.04''': PHP 5.2.6, PostgreSQL 8.3, MySQL 5.0, Oracle 10g XE
+
+The server is also occasionally used for development and testing.
+
+== Desired Setup ==
+
+Moving forward I would like to add a number of other OSes, PHP versions and
+databases to the normal testing and create a distributed test runner/reporter.
+Ideally I'd like to add the following:
+
+ - OSX
+ - FreeBSD
+ - CentOS
+ - Solaris
+ - Windows Server 2008
+
+ - PHP 5.3
+ - PHP 5.1.6 ''(just on CentOS, since it and RedHat still has the official
+   package stuck at that version)''
+
+At this point the only software that would require purchase would be Windows
+Server 2008. I'll probably worry about that after the hardware, especially since
+a Server 2008 Web Edition licenses seems to run about $430, and there shouldn't
+really be many differences between Server 2008 and XP that affect Flourish.
+
+Currently it is not possible to run OSX in a virtualized environment due to
+support and licensing issues, so I will probably need to obtain a physical
+machine to do this testing. If you have an older iMac or Mac mini and feel like
+donation that, I would be grateful!
+
+== Proposed Hardware ==
+
+I've identified the following hardware as a good future-proof setup that should
+allow for running VMWare Server, or something like Xen, for the virtualization.
+Specifically the Intel VT-x and VT-d extensions on the CPU allow for more
+virtualization options.
+
+ - [http://www.newegg.com/Product/Product.aspx?Item=N82E16819115214 Intel Core
+   i7 860 Lynnfield 2.8GHz LGA 1156 95W Quad-Core Processor] - '''$289.99'''
+ - [http://www.newegg.com/Product/Product.aspx?Item=N82E16813128405 GIGABYTE
+   GA-P55M-UD2 LGA 1156 Intel P55 Micro ATX Motherboard] - '''$109.99'''
+ - 2x [http://www.newegg.com/Product/ProductReview.aspx?Item=N82E16813128405
+   G.SKILL 4GB (2 x 2GB) 240-Pin DDR3 1600 Ram Kits] - '''$171.98''' ($85.99 each)
+ - [http://www.newegg.com/Product/Product.aspx?Item=N82E16814127396 MSI
+   N9400GT-MD512H GeForce 9400 GT Video Card] - '''$47.99'''
+
+Shipping: '''$6.98'''[[BR]]
+Grand Total: '''$626.93'''
+
+== Donations ==
+
+Currently a total of '''$627.49''' has been donated to Flourish, so the goal has
+been reached and the hardware ordered. A huge thanks to the following people for
+their generous support:
+
+ - '''Justin Noel''' ''who covered almost the entire cost—Thank you! '' 
+ - Martin Santangelo
+ - Luke Foreman 
+
+== Next Steps ==
+
+The first step in the process is to get hardware running that can support a
+large number of concurrently running virtual machines so that the automated
+testing on each SVN commit can always happen and so that ad-hoc development
+testing can occur too.
+
+Once the hardware is in place and OSes are set up, work will need to be done to
+create some scripts that remotely trigger and aggregate the results. At some
+point in the future when more developers come on board with Flourish, it would
+be nice to set up the testing environment to be available to all developers.

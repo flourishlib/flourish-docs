@@ -1,0 +1,177 @@
+= fDate =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fDate Class Documentation]'''
+ - [/api/fDate API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fDate.php Source Code]
+
+<<toc bare>>
+
+== Date/Time Classes <<toc skip>> ==
+ - '''fDate'''
+ - fTime
+ - fTimestamp
+
+== Value Objects <<toc skip>> ==
+ - '''fDate'''
+ - fMoney
+ - fNumber
+ - fTime
+ - fTimestamp
+)))
+
+The fDate class is a [/docs/ValueObjects value object] representation of a date. One of the primary attributes of the object is that its value can not be changed, but instead a new object is created.
+
+This class is built on top of the PHP date/time functions and can only handle dates ranging from 1901&ndash;2038.
+
+== Instantiation ==
+
+The fDate constructor takes a single argument, either a string, integer or object (with a `__toString()` method) representing a date. Any string format accepted by [http://php.net/strtotime `strtotime()`] will work.
+
+{{{
+#!php
+$date1 = new fDate('today');
+$date2 = new fDate('sunday');
+$date3 = new fDate('3 Feb 2008');
+$date4 = new fDate('2005-01-02');
+}}}
+
+== Modification ==
+
+Rather than allowing an fDate object value to be modified, which can create issues since objects are passed by reference, all changes to a date create a new object.
+
+Usually when modifying a date, only one or two components (such as month or year) of the date will change. The ::modify() method leverages the formatting codes from the [http://php.net/function.date `date()`] function to keep parts of the existing date while replacing others.
+
+Here are some examples of `modify()`:
+
+{{{
+#!php
+// The new date’s year would be 2007 while the month and day would be the same
+$new_date = $date1->modify('2007-m-d');
+
+// The new date would be the 1st day (Monday) of the 9th week of the year
+$new_date = $date2->modify('Y-\W9-1');
+
+// The new date would simply change the day of the month to the 1st
+$new_date = $date3->modify('Y-m-01');
+
+// The new date would have the same year and day, but the month would be June
+$new_date = $date4->modify('Y-06-d');
+}}}
+
+== Adjustments ==
+
+Occasionally you may have the need to adjust a date. The ::adjust() method takes a single parameter which can contain any relative time measurement that [http://php.net/strtotime `strtotime()`] accepts. Since the fDate class is an immutable value object, calls to `adjust()` return a new fDate object.
+
+{{{
+#!php
+$new_date = $date1->adjust('tomorrow');
+$new_date = $date2->adjust('+1 day');
+$new_date = $date3->adjust('-2 years +1 week');
+$new_date = $date4->adjust('next wednesday');
+}}}
+
+== Formatting ==
+
+To format the date, simply call the ::format() method with any valid date formatting string from [http://php.net/date `date()`]. Here are some examples:
+
+{{{
+#!php
+// Normal date formatting
+echo $date1->format('Y-m-d');
+echo $date2->format('n/j/y');
+}}}
+
+== Comparing ==
+
+There are five different methods available to compare dates, ::eq(), ::gt(), ::gte(), ::lt() and ::lte(). Each method optionally accepts a parameter `$other_date`. If no `$other_date` is specified, the date is compared to the current date. If `$other_date` is specified, the two are compared. `$other_date` accepts any valid date descriptor that works with ::__construct().
+
+Here are some examples:
+
+{{{
+#!php
+$today    = new fDate();
+$tomorrow = new fDate('+1 day');
+
+// These return TRUE
+$today->eq();
+$today->eq('now');
+$today->lt($tomorrow);
+$today->lte($tomorrow);
+$today->lt('+1 year');
+
+// These calls return FALSE
+$tomorrow->lt($today);
+$today->gt($tomorrow);
+$today->gte($tomorrow);
+}}}
+
+== Fuzzy Differences ==
+
+If you are looking to get a fuzzy difference between two dates for display, you’ll want to use the ::getFuzzyDifference() method. The first parameter, `$other_date`, optionally accepts a valid date descriptor that can be passed to ::__construct(). If one is passed, the difference will be between the two dates, if nothing is passed, the difference will be between the fDate and the current date.
+
+The value returned by `getFuzzyDifference()` will be a string representing the most broad time measurement between the two dates. In addition, if the difference is just shy of the next largest time measurement, it will be rounded up. Thus 3.5 weeks would become 1 month.
+
+Here are some examples to clarify. The following examples are comparing two date descriptors:
+
+{{{
+#!php
+$date1 = new fDate('2008-01-01');
+$date2 = new fDate('2008-01-04');
+
+echo $date1->getFuzzyDifference($date2);
+// Output: 3 days before
+
+echo $date2->getFuzzyDifference($date1);
+// Output: 3 days after
+
+$date3 = new fDate('2008-01-10');
+
+echo $date3->getFuzzyDifference('2008-01-01');
+// Output: 1 week after
+
+$date4 = new fDate('2008-01-28');
+
+echo $date4->getFuzzyDifference('2008-01-01');
+// Output: 1 month after
+}}}
+
+These examples show output when comparing an fDate object with the current date:
+
+{{{
+#!php
+// First, let’s assume today is January 1st, 2008.
+
+$date1 = new fDate('2008-01-04');
+$date2 = new fDate('2008-01-09');
+$date2 = new fDate('2007-12-02');
+
+echo $date1->getFuzzyDifference();
+// Output: 3 days from now
+
+echo $date2->getFuzzyDifference();
+// Output: 1 week from now
+
+echo $date3->getFuzzyDifference();
+// Output: 1 month ago
+}}}
+
+An optional boolean parameter, `$simple`, can also be passed to `getFuzzyDifference()`. When `TRUE`, this parameter causes the method to return the difference in time, but not the direction.
+
+{{{
+#!php
+$date1 = new fDate('2008-01-01');
+$date2 = new fDate('2008-01-04');
+
+echo $date1->getFuzzyDifference($date2, TRUE);
+// Output: 3 days
+
+echo $date2->getFuzzyDifference($date1, TRUE);
+// Output: 3 days
+
+$date3 = new fDate('2008-01-10');
+
+echo $date3->getFuzzyDifference('2008-01-01', TRUE);
+// Output: 1 week
+}}}

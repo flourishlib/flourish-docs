@@ -1,0 +1,62 @@
+= fLoader =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fLoader Class Documentation]'''
+ - [/api/fLoader API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fLoader.php Source Code]
+
+<<toc bare>>
+)))
+
+The fLoader class is designed to load Flourish class. By default it detects the optimal type of loading to perform based on the server environment. In addition to loading classes, it creates constructor functions for the various Flourish value object classes.
+
+== Standard Usage ==
+
+Loading Flourish should normally be performed by calling the static method ::best().
+
+{{{
+#!php
+include './path/to/fLoader.php';
+fLoader::best();
+}}}
+
+If an opcode cache (e.g. APC, XCache, etc) is detected, all class file are immediately included. If an opcode cache is not detected, an autoload function is registered via [http://php.net/spl_autoload_register `spl_autoload_register()`].
+
+If you need explicit control over what type of loading is performed, you should call one of the static methods ::eager() or ::lazy() instead.
+
+== Constructor Functions ==
+
+Constructor functions is a term used to refer to functions that simply call the constructor of a class. The functions have the same name as the class, which effectively means that the `new` keyword is not required, and that method calls may be changed off of the constructor.
+
+{{{
+#!php
+// Without constructor functions
+$date = new fDate();
+$date = $date->modify('Y-m-01');
+
+// With constructor functions
+$date = fDate()->modify('Y-m-01');
+}}}
+
+fLoader automatically creates constructor functions for all [/docs/ValueObjects value object classes]:
+
+ - fDate
+ - fMoney
+ - fNumber
+ - fTime
+ - fTimestamp
+
+== Detecting Opcode Caches ==
+
+The static method ::hasOpcodeCache() can be used to create intelligent loading functionality for other code.
+
+{{{
+#!php
+include './other/project/Loader.php';
+if (fLoader::hasOpcodeCache()) {
+    Loader::includeAll();
+} else {
+    Loader::autoload();
+}
+}}}

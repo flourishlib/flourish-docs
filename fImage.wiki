@@ -1,0 +1,174 @@
+= fImage =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fImage Class Documentation]'''
+ - [/api/fImage API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fImage.php Source Code]
+
+<<toc bare>>
+
+== Filesystem Classes <<toc skip>> ==
+ - fFilesystem
+ - fFile
+  - '''fImage'''
+ - fDirectory
+ - fUpload
+)))
+
+The fImage class is a representation of an image file on the filesystem. It provides all of the functionality of the fFile class and adds the ability to perform image manipulation via GD or ImageMagick.
+
+== Configuration ==
+
+As mentioned above, the fImage class provide image manipulation by using either the command line program [http://imagemagick.org ImageMagick] or the [http://php.net/gd PHP GD extension]. fImage prefers ImageMagick since it provides superior performance and does not have the restriction of the PHP memory limit, like the GD extension does.
+
+If the GD extension is not installed and ImageMagick can not be found in a standard location, fImage will need to be configured with the location of ImageMagick. This can be done by passing the ImageMagick binary’s directory to the static method ::setImageMagickDirectory().
+
+{{{
+#!php
+// An example of manually configuring ImageMagick
+fImage::setImageMagickDirectory('/usr/local/imagemagick/bin');
+}}}
+
+In addition to configuring the path to the ImageMagick binaries, it is also possible to set a temporary directory for ImageMagick to use when processing files. The ::setImageMagickTempDir() static method performs this task and takes a single parameter `$temp_dir`.
+
+{{{
+#!php
+// Setting a custom temporary directory for ImageMagick
+fImage::setImageMagickTempDir('/tmp/imagemagick');
+}}}
+
+== Image Information ==
+
+The fImage class includes a few methods to provide basic metadata about the image. ::getWidth() and ::getHeight() provide straight-forward access to image dimensions. ::getDimensions() returns a two-element array of the width, then the height.
+
+{{{
+#!php
+$width  = $image->getWidth();
+$height = $image->getHeight();
+
+list($witdh, $height) = $image->getDimensions();
+}}}
+
+The method ::getType() will return a string with the image type. Types include: `'jpg'`, `'gif'`, `'png'` and `'tif'`.
+
+{{{
+#!php
+$type = $image->getType();
+}}}
+
+== Modification ==
+
+Probably the most significant functionality of the fImage class is the ability to modify an image. There are currently three different modifications that can be performed: ::crop(), ::cropToRatio(), ::resize() and ::desaturate().
+
+Calling any of these modifications will not actually cause the changes to be written to disk until [#SavingChanges `saveChanges()`] is called.
+
+=== Cropping ===
+
+::crop() accepts four parameters, the pixels dimensions for `$new_width` and `$new_height`, `$crop_from_x`, `$crop_from_y`, and will perform pixel-specific cropping.
+
+{{{
+#!php
+// Create a 16x16 icon from the top left of an image
+$image1 = new fImage('./example.gif');
+$image1->crop(16, 16, 0, 0);
+$image1->saveChanges();
+}}}
+
+It is also possible to crop with `$crop_from_x` and `$crop_from_y` being a string position. The possible values for `$crop_from_x` are `left`, `center` and `right`. The possible values for `$crop_from_y` are `top`, `center` and `bottom`.
+
+{{{
+#!php
+// Create a 16x16 icon from the top right of an image
+$image1 = new fImage('./example.gif');
+$image1->crop(16, 16, 'right', 'top');
+$image1->saveChanges();
+}}}
+
+::cropToRatio() will crop the largest rectangle our of an image that conforms to the ratio passed in via `$ratio_width` and `$ratio_height`. By default, the crop is made from the center of the image.
+
+{{{
+#!php
+// Create a 32x32 icon from an image
+$image3 = new fImage('./example.gif');
+$image3->cropToRatio(1, 1);
+$image3->resize(32, 32);
+$image3->saveChanges();
+}}}
+
+Similar to ::crop(), it is possible to crop to a ratio from a specific position in the image. The third parameter, `$horizontal_position` accepts either `left`, `center` or `right`. The fourth parameter, `$vertical_position`, accepts `top`, `center` or `bottom`.
+
+{{{
+#!php
+// Create a 32x32 icon from the bottom right of an image
+$image3 = new fImage('./example.gif');
+$image3->cropToRatio(1, 1, 'right', 'bottom');
+$image3->resize(32, 32);
+$image3->saveChanges();
+}}}
+
+=== Desaturating ===
+
+::desaturate() will cause the image to lose all color information and become grayscale.
+
+{{{
+#!php
+// Change the image to be grayscale
+$image3 = new fImage('./example.gif');
+$image3->desaturate();
+$image3->saveChanges();
+}}}
+
+=== Resizing ===
+
+::resize() will scale the image to fit the canvas size defined by the parameters `$canvas_width` and `$canvas_height`. If either parameter is `empty()` or `0`, the image will be resized to fit the specified dimension.
+
+{{{
+#!php
+// Ensure an image is never wider than 250 pixels
+$image4 = new fImage('./example.gif');
+$image4->resize(250, 0);
+$image4->saveChanges();
+}}}
+
+`resize()` can also accept an optional third parameter, `$allow_upsizing`. By default `resize()` will only make the image smaller, but when this is `TRUE` the image will be made to fit the dimensions even if it must be increased in size.
+
+{{{
+#!php
+// Make an image exactly 100 pixels wide
+$image5 = new fImage('./example.gif');
+$image5->resize(100, 0, TRUE);
+$image5->saveChanges();
+}}}
+
+== Saving Changes ==
+
+::saveChanges() can accept from zero to three parameters. The first optional parameter is the `$new_image_type` which can be `'jpg'`, `'gif'` or `'png'`. If no `$new_image_type` is specified, the image will be resaved in the current format.
+
+{{{
+#!php
+// Saving as a PNG
+$image2 = new fImage('./example.gif');
+$image2->resize(250, 0);
+$image2->saveChanges('png');
+}}}
+
+If the `'jpg'` image type is specified, there is a second optional parameter, the `$jpeg_quality` to use. If no `$jpeg_quality` is specified, `90` is used as the default.
+
+{{{
+#!php
+// Saving as a 60 quality JPEG
+$image2 = new fImage('./example.gif');
+$image2->resize(250, 0);
+$image2->saveChanges('jpeg', 60);
+}}}
+
+A third optional parameter, `$overwrite`, accepts a boolean and will cause a file with the same name and type to be overwritten. For example, if the file is currently `image.gif` and you call `saveChanges()` with the parameter `'jpg'` and another file named `image.jpg` exists, by default `image.gif` will be saved with changes as `image_copy1.jpg`. When `$overwrite` is `TRUE`, `image.jpg` will be overwritten.
+
+{{{
+#!php
+// Saving as a PNG and overwrite any existing example.png
+$image2 = new fImage('./example.gif');
+$image2->resize(250, 0);
+$image2->saveChanges('png', TRUE);
+}}}

@@ -1,0 +1,380 @@
+= fRequest =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fRequest Class Documentation]'''
+ - [/api/fRequest API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fRequest.php Source Code]
+
+<<toc bare>>
+)))
+
+The fRequest class is a static class that allows access to data sent via `GET`, `POST`, `PUT` and `DELETE` HTTP requests. It also provides functionality to determine the HTTP method used and retrieve relevant `Accept` and `Accept-Language` values sent by the browser.
+
+== Getting Values ==
+
+While fRequest does more than just get values, most developers will be primarily interested in the two methods ::get() and ::getValid(). Both methods pull values from the `$_GET` and `$_POST` superglobals and the `php://input` stream (for `PUT` and `DELETE` requests).
+
+The `get()` method will pull a value, but you can also typecast the value and provide a default. The first parameter, `$key`, specifies the key to get the value for. The second (optional) parameter, `$cast_to`, will set the data type of the value. It accepts any type string that is valid for the PHP function `settype()`. `NULL` can be used if no type casting should happen.
+
+The third (optional) parameter, `$default_value`, specifies what should be returned if the key is not found in `$_POST`, `$_GET` or `php://input`. The fourth (optional) parameter, `$use_default_for_blank`, causes the `$default` value to be returned if a blank string value was provided for the key, or the key is not found.
+
+Here are some examples:
+
+{{{
+#!php
+<?php
+// The first_name field will be returned in whatever format was submitted - string or array
+$first_name = fRequest::get('first_name');
+
+// An array will always be returned, defaulting to an array of 1 if no value is provided
+$group_ids  = fRequest::get('group_ids', 'array', array(1));
+
+// Integer return value - 1 will be returned if no value, but a blank value will be cast to 0
+$user_id    = fRequest::get('user_id', 'integer', 1);
+
+// Integer return value -  1 will be returned if no value or a blank string is provided
+$total_cost = fRequest::get('total_cost', 'integer', 1, TRUE);
+?>
+}}}
+
+=== Input Filtering by Typecasting (Security) ===
+
+An important aspect of the ::get() method is to use the `$cast_to` parameter whenever possible. This helps to restrict data coming in and is part of creating an effective solution against cross-site scripting.
+
+{{{
+#!php
+// IDs that can only ever be integers should be cast to integers
+$blog_id = fRequest::get('blog_id', 'integer');
+}}}
+
+Currently the following data types are supported:
+
+ - array
+ - binary
+ - boolean
+ - date
+ - float
+ - integer
+ - integer!
+ - string
+ - time
+ - timestamp
+
+=== Special Data Type Handling ===  
+
+When accepting information from the user, different data types have to be handled differently. Of special note are arrays, binary, booleans, dates/times/timestamps, integers and strings.
+
+==== Arrays ====
+
+For arrays, PHP will automatically create an array when input field names end with `[]`. Thus if you wanted to capture an array of groups ids, you could create a checkbox for each group id and give each one the name `group_ids[]`. When PHP parses the request data it will join all `group_ids[]` values into an array and assign it to the key `groups_ids` in the appropriate superglobal. 
+
+The array features mentioned above are built into PHP, however Flourish takes the array processing a step further. If a value is to be cast to an array, and is a string that contains commas, the string will be exploded on the comma character. Additionally, if an array contains a single entry of either a blank string or a `NULL` value, Flourish will return an empty array. This prevents having to manually filter arrays for meaningless values.
+
+See [#StrictArrays strict arrays] to create a single-dimensional array of a specific data type.
+
+==== Binary ====
+
+Binary data does not have any modification made to it when it is returned. There is no guarantee what encoding it will be in, and it may even contain null bytes. 
+
+==== Booleans ====
+
+Booleans are interpreted from string values in as logical a way as possible. Empty values (according to PHP’s `empty()` function) and the strings `'f'`, `'false'` and `'no'` (case-insensitive) will result in a `FALSE` value. This is obviously also the case if the key is not present in the request. Any other string value such as `'1'`, `'t'`, `'true'`, `'yes'`, etc. will be interpreted as a `TRUE` value.
+
+==== Dates/Times/Timestamps ====
+
+When the `date`, `time` and `timestamp` data types are specified, the returned values will be fDate, fTime and fTimestamp objects, respectively.
+
+==== Integers ====
+
+When the `integer` or `int` type is specified, all values are cast to a real PHP integer, except for large integer values, which are kept as strings. Large integer values are value that can not be represented by a PHP integer. If a real PHP integer is always required, the `integer!` type may be used instead. This type may cause the modification of some large integer values.
+
+==== Strings ====
+
+All strings that are passed through the `get()` method are expected to be UTF-8 and any invalid UTF-8 characters are removed by passing the data through fUTF::clean(). In addition to invalid UTF-8 byte sequences, all low byte non-printable characters are removed. This is true even if a value is not explicitly cast to a string, or if the string is contained inside of an array. ''If you need raw data, use the [#Binary binary] type.''
+
+=== Allowing Null ===
+
+When typecasting values, it is sometimes useful for the absence of a value to return `NULL`, while still casting all non-`NULL` values. By adding a `?` to the end of the data type, `NULL` will be returned if the key is not present in the request data, or if the value is an empty string `''`.
+
+{{{
+#!php
+// Get an integer or NULL
+$count = fRequest::get('count', 'integer?');
+
+// Get an fDate object or NULL
+$date  = fRequest::get('date', 'date?');
+}}}
+
+=== Strict Arrays ===
+
+The `array` type ensures that the value returned will be an array containing string values, with an unlimited number of dimensions. It is also possible to add `[]` to the end of any other data type to return a '''single-dimensional''' array containing values of that type.
+
+{{{
+#!php
+// Return a single dimensional array of integers
+$ids = fRequest::get('ids', 'integer[]');
+}}}
+
+=== Restricting Valid Values ===
+
+The method `getValid()` simplifies the process a great deal by taking exactly two parameters, `$key`, the key to request the value for and `$valid_values`, an array of permissible values. If the value is not one of the valid value, the first valid value will be picked. Here is an example:
+
+{{{
+#!php
+<?php
+// $action will get the value 'list' if no value was present
+$action = fRequest::getValid('action', array('list', 'search'));
+?>
+}}}
+
+=== Escaping for HTML Output ===
+
+The static methods ::encode() and ::prepare() provide a simple short to calling ::get() and then wrapping the result in fHTML::encode() or fHTML::prepare() respectively. These two methods have the exact same signature as ::get() and don't perform any processing other than passing the resulting value to fHTML.
+
+{{{
+#!php
+// Output a trusted value from the request
+echo fRequest::prepare('name');
+
+// Output an untrusted value from the request
+echo fRequest::encode('name');
+}}}
+
+''Just as with fHTML::prepare(), be sure to only ever use ::prepare() if the user input can be trusted. `prepare()` allows for HTML to be inserted into the page unescaped. If the input is untrusted, the ::encode() method should be used instead.''
+
+== Setting Values ==
+
+Sometimes when dealing with different input types, it is useful to be able to alter or fix the request data. The method ::set() allows a new value to be set to any key. It accepts two parameters, the `$key` to set and the `$value` to assign.
+
+{{{
+#!php
+if ($datetime = fRequest::get('date_time')) {
+    fRequest::set('date', date('Y-m-d', strtotime($datetime)));
+    fRequest::set('time', date('g:ia',  strtotime($datetime)));
+}
+}}}
+
+== Array Dereferencing ==
+
+When a request value is an array, it is possible to use array dereference syntax in the field name to access a specific array key. This syntax works with ::get(), ::getValid(), ::set(), ::check(), ::encode() and ::prepare().
+
+An input using array notation will automatically be converted to an array when PHP processes the request. This means the following inputs:
+
+{{{
+#!html
+<input name="users[first_name]" value="John" />
+<input name="users[last_name]" value="Smith" />
+}}}
+
+will cause the `$_POST` superglobal to contain:
+
+{{{
+array(
+    'user' => array(
+        'first_name' => 'John',
+        'last_name'  => 'Smith'
+    )
+)
+}}}
+
+fRequest uses array dereference syntax that is identical to the `<input>` tag syntax.
+
+{{{
+#!php
+// This will echo John
+echo fRequest::get('user[first_name]');
+}}}
+
+Array dereferencing can be any number of layers deep.
+
+{{{
+#!php
+echo fRequest::get('user[groups][0][name]');
+}}}
+
+== Preventing CSRF (Security) ==
+
+[http://en.wikipedia.org/wiki/Cross-site_request_forgery Cross-site request forgery] (CSRF) is a technique where malicious websites will take advantage of the fact that a user has a valid session on a site, and will generate unauthorized requests on their behalf. These unauthorized requests can take the form of either `GET` or `POST` requests and can affect any page that does not validate the request properly.
+
+`GET` request exploits are very easy to implement by taking advantage of the `src` attribute of various HTML tags. Imagine the HTML below living on `http://example2.com`:
+
+{{{
+#!html
+<img src="http://example.com/my_messages/delete_all.php" />
+}}}
+
+If the script located at `/my_messages/delete_all.php` allowed a `GET` request to cause all messages to delete and the user who visited `example2.com` was logged into `example.com`, all of their messages would be deleted.
+
+`POST` request exploits are slightly more difficult to take advantage of since a user will have to actually submit a form. Imagine the HTML below living on `http://example2.com`:
+
+{{{
+#!html
+<p>
+    Sign up for a free MP3 player!
+</p>
+<form action="http://example.com/my_messages/delete_all.php" method="post">
+    <p>
+        <label for="email">Your Email</label>
+        <input id="email" name="email" value="" />   
+    </p>
+    <p>
+        <input type="submit" value="Sign Up!" />
+    </p>
+</form>
+}}}
+
+This form would work even if the script requires a `POST` request, however it requires convincing the user to submit a form or use javascript to automatically trigger it.
+
+Obviously quite a number of things can help to prevent there CSRF attacks, however the best security is implemented by giving the user a single-use crytographically random token for them to resubmit with the request. This requires that the user request the page first (to get the token) and then resubmit it.
+
+Since the attack relies on the user being logged in to a site in their browser, the attacking site will not be able to use a server-side request to retrieve the page, and thus the token. In addition, browsers prevent javascript from requesting pages across domains, so that precludes an attacking using it to retrieve the page and then resubmit.
+
+The static method ::generateCSRFToken() will create a single-use token to place into a form to protect against CSRF attacks. When processing a form, the static method ::validateCSRFToken() should be used to ensure the form submission is valid by passing the `$token` as the first parameter. If the token is not valid, an fValidationException will be thrown.
+
+The following HTML form and corresponding PHP will ensure that only users who request the form will then be able to delete their messages.
+
+{{{
+#!html
+<form action="" method="post">
+    <p>
+        <input type="submit" value="Yes, delete my messages!" />
+        <input type="hidden" name="request_token" value="<?php echo fRequest::generateCSRFToken() ?>" />
+    </p>
+</form>
+}}} 
+
+{{{
+#!php
+if (fRequest::isPost()) {
+    try {
+        fRequest::validateCSRFToken(fRequest::get('request_token'));
+
+        // Delete all of the user’s messages
+        
+    } catch (fExpectedException $e) {
+        $e->printMessage();
+    }
+}
+}}}
+
+By default both `generateCSRFToken()` and `validateCSRFToken()` will use the current page as the identifier to use when checking the token. If one page is submitting the value, but another is checking it, the `$url` parameter of each method can be used.
+
+{{{
+#!html
+<input type="hidden" name="request_token" value="<?php echo fRequest::generateCSRFToken('/processing_page.php') ?>" />
+}}}
+
+{{{
+#!php
+fRequest::validateCSRFToken(fRequest::get('request_token'), '/processing_page.php');
+}}}
+
+In addition, each URL can have multiple valid tokens at one time. This ensures that tabbed browsing will not cause the user to receive error messages about unauthenticated requests.
+
+== Checking The HTTP Method ==
+
+When creating RESTful applications it is useful to know the HTTP method used to request the current page. There are four methods to check each of the four HTTP methods:
+
+|| '''HTTP Method''' || '''!fRequest Method''' ||
+|| GET               || ::isGet()             ||
+|| POST              || ::isPost()            ||
+|| PUT               || ::isPut()             ||
+|| DELETE            || ::isDelete()          ||
+
+Since browsers only currently support `GET` and `POST` method, `isPost()` will commonly be the only one used unless creating a RESTful API.
+
+{{{
+#!php
+if (fRequest::isPost()) {
+    // Perform constructive/destructive action
+}
+}}}
+
+It is also possible to see if a request was made via AJAX by using the static method ::isAjax(). This checks the `HTTP_X_REQUESTED_WITH` HTTP header to see if it is set to `xmlhttprequest`.
+
+{{{
+#!php
+if (fRequest::isAjax()) {
+    // Perform partial interaction
+}
+}}} 
+
+== Retrieving HTTP Accept Values ==
+
+When building applications or sites that deliver different formats or translations of content, the HTTP `Accept` and `Accept-Language` headers include important information about what the client expects in response.
+
+The `Accept` header includes a list of acceptable mime-types that the client expects in return. In addition, the HTTP spec includes a `q` value to indicate which mime-types are preferred over others. The `Accept-Language` header include a similar list for the language of the response. `Accept-Language` value can also include a `q` value for each language.
+
+The static methods ::getAcceptTypes() and ::getAcceptLanguages() will each return a list of the acceptable mime-types and languages, respectively, ordered by the `q` values for each.
+
+{{{
+#!php
+$mime_types = fRequest::getAcceptTypes();
+$languages  = fRequest::getAcceptLanguages();
+}}}
+
+If no accepts headers are sent by the client, an empty array will be returned.
+
+It is also possible to provide a list of valid accept types or languages and pick the client’s preferred one by using the methods ::getBestAcceptType() and ::getBestAcceptLanguage().
+
+Each method accepts a single parameter, an ordered array of the mime type or languages supported by your application. The type or language with the highest `q` value for the client will be returned.
+
+{{{
+#!php
+$mime_type = fRequest::getBestAcceptType(array(
+    'application/json',
+    'text/html'
+));
+$language = fRequest::getBestAcceptLanguage(array(
+    'en-us',
+    'fr-ca'
+));
+}}}
+
+If no value in the array matches, `FALSE` will be returned. If any value is acceptable, the first value in the array will be returned.
+
+If no array of valid values is specified, and the client accepts any value, `NULL` will be returned. Otherwise the value specified by the client with the highest `q` will be returned.
+
+== Multiple Submit Buttons ==
+
+There are sure to be times when a user is given multiple options when submitting a form and where you don’t want to require the user to have javascript enabled in their browser. The ::overrideAction() method allows for a form to have multiple submit buttons and for them to trigger different functionality. 
+
+This solution stems from the problem that the only way to tell which submit button was click is that button’s name and value pair is added to the `GET` or `POST` data, while all other submit buttons are ignored. Rather than requiring the developer to manually check for specific values when creating multiple submit buttons, ::overrideAction() allows the name of a submit button to be set to `action::{action_to_trigger}`.
+
+If a submit button with a name as above is clicked and ::overrideAction() is called in the destination page, the `action` parameter of `$_GET` or `$_POST` will all be overridden with this action. 
+
+Here is an example:
+
+{{{
+#!html
+<form action="<?php echo fURL::get() ?>" method="post">
+    ...
+    <p>
+        <input type="hidden" name="action" value="delete" />
+        <input type="submit" value="Yes, delete this user" />
+        <input type="submit" name="action::list" value="No, keep this user" />
+    </p>
+</form>
+}}}
+
+And the PHP to handle the form submission:
+
+{{{
+#!php
+// We will call overrideAction() as the very first thing so everything else see the modified `$_POST` superglobal
+fRequest::overrideAction();
+
+// Get the action to execute
+$action = fRequest::get('action');
+}}}
+
+If the user were to click `Yes, delete this user` then the action `remove` would be executed, however if the user clicked `No, keep this user` then the `list` action would be executed.
+
+It is also possible to pass a redirection URL to ::overrideAction(). If the string `%action%` is found in the redirection URL, it will be replaced with the overridden action. Here is an example:
+
+{{{
+#!php
+// Redirect the user to /admin/users/{action} if an overridden action is posted
+fRequest::overrideAction('/admin/users/%action%');
+}}}

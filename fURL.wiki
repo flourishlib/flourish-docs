@@ -1,0 +1,125 @@
+= fURL =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fURL Class Documentation]'''
+ - [/api/fURL API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fURL.php Source Code]
+
+<<toc bare>>
+)))
+
+The fURL class provides a simple and useful set of features for dealing with URLs in your site or application.
+
+== Getting URL Information ==
+
+There are a few static methods that allow retrieval of URL information. All of these static methods return information about the URL as requested by the browser. All server-side rewrites are ignored.
+
+|| '''Method'''           || '''Description''' ||
+|| ::get()                || ''Returns the current URL minus the query string and domain name'' ||
+|| ::getQueryString()     || ''Returns the current query string'' ||
+|| ::getWithQueryString() || ''Returns the current URL minus the domain name'' ||
+|| ::getDomain()          || ''Returns the current domain name with protocol prefix'' ||
+
+Here are examples of them being used:
+
+{{{
+#!php
+// Since all of the methods are static, no instance of the fURL object is required
+$url    = fURL::get();
+$qs     = fURL::getQueryString();
+$url_qs = fURL::getWithQueryString();
+$domain = fURL::getDomain();
+}}}
+
+== Modifying the Query String ==
+
+Beyond simply retrieving information about the URL, the fURL class also provides some functionality to modify the query string.
+
+The ::replaceInQueryString() and ::removeFromQueryString() methods allow addition/replacement and deletion of a values in the query string, respectively. Similar to the various `get` methods, these methods work with the URL before any server-side rewrites were applied.
+
+`replaceInQueryString()` takes two parameters, `$key` and `$value`. Any existing value for the key will be replaced. If no value exists for the key, the key will be added with the new value. Here is the method in use:
+
+{{{
+#!php
+// The following code assumes the query string is: example=one&example_2=false
+
+// $new_qs would end up being: example=one&example_2=false&example_3=today
+$new_qs  = fURL::replaceInQueryString('example_3', 'today');
+
+// $new_qs would end up being: example=two&example_2=false
+$new_qs  = fURL::replaceInQueryString('example', 'two');
+}}}
+
+`removeFromQueryString()` takes any number of parameters with each one being a `GET` key/field. Any matching key in the query string will be removed. Here is an example of the method in action:
+
+{{{
+#!php
+// The following code assumes the query string is: example=one&example_2=false
+
+// $new_qs would end up being: example=one
+$new_qs  = fURL::removeFromQueryString('example_2');
+}}}
+
+== Redirection ==
+
+The ::redirect() method was built to simplify the task of redirecting a user to another web page. Simply pass the name of the site/page to redirect to as the only parameter and the method will determine the type of link it is (relative, web server absolute, etc.).
+
+Since headers can only be sent before content, you will either need to ensure no content has been sent to the user yet, or that [http://php.net/outcontrol output buffering] has been enabled. The fBuffer class may be of interest if you are going to use output buffering.
+
+The method will redirect to almost any URL provided, and will do so in standard-compliant way by sending a fully-formed (including protocol and domain name) URL in the HTTP headers. Here are some examples of how to use the `redirect()` method:
+
+{{{
+#!php
+// Redirect to an absolute web server path
+fURL::redirect('/supplemental/example.php');
+
+// Redirect to a relative page
+fURL::redirect('example.php');
+
+// Redirect to the current page with a different query string
+fURL::redirect('?parameter=TRUE');
+
+// Redirect to a fully-formed URL
+fURL::redirect('http://example.com');
+fURL::redirect('https://example.com/example.php');
+}}}
+
+== URL Creation ==
+
+When creating websites with friendly URLs it is useful to be able to convert the title of something into a human-readable url without having to worry about punctuation or characters with diacritics creating those nasty hexadecimal codes.
+
+The ::makeFriendly() method performs this URL creation task. You can pass in any UTF-8 string and you will get back a URL made up of lowercase letters, numbers and the underscore character. All characters with diacritics will be converted to their plain counterparts.
+
+Here are some examples:
+
+{{{
+#!php
+// $url will be set to: /users/view/1/john_smith
+$url = '/users/view/1/' . fURL::makeFriendly('John Smith');
+
+// $url will be set to: /users/view/2/renee_smith
+$url = '/users/view/2/' . fURL::makeFriendly('Renée Smith');
+
+// $url will be set to: /news/view/1/notice_this_title_will_work_fine
+$url = '/news/view/1/' . fURL::makeFriendly('Notice: This Title Will Work Fine!');
+}}}
+
+It is possible to limit the character length of the generated string by passing a number to the optional second parameter `$max_length`.
+
+{{{
+#!php
+// Limit the URL to 40 characters
+$limited_url = fURL::makeFriendly('This is a test of limiting the length of a URL', 40);
+}}}
+
+By default ::makeFriendly() uses the `_` character to separate words. The optional third parameter, `$delimiter`, allows for changing this. If no length restriction is desired, the `$delimiter` can be passed as the second parameter.
+
+{{{
+#!php
+// Limit the URL to 40 characters and use - for the delimiter
+$limited_url = fURL::makeFriendly('This is a test of length limiting and using a different delimiter', 40, '-');
+
+// Use - for the delimiter
+$limited_url = fURL::makeFriendly('This is a test of using a separate delimiter', '-');
+}}}

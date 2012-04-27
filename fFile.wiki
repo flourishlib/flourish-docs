@@ -1,0 +1,120 @@
+= fFile =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fFile Class Documentation]'''
+ - [/api/fFile API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fFile.php Source Code]
+
+<<toc bare>>
+
+== Filesystem Classes <<toc skip>> ==
+ - fFilesystem
+ - '''fFile'''
+  - fImage
+ - fDirectory
+ - fUpload
+)))
+
+The fFile class is a simple object representation of a file on the filesystem. It provides an object-based interface to common file functions and allows actions to be grouped into transactions via the fFilesystem class.
+
+== Instantiation ==
+
+The fFile constructor normally takes a single argument, the filesystem path to a file.
+
+{{{
+#!php
+$file1 = new fFile('/var/www/vhosts/examples.com/httpdocs/images/example.gif');
+$file2 = new fFile('./output.txt');
+$file3 = new fFile('../uploads/documents/example.doc');
+}}}
+
+A second argument can be passed to the constructor allowing for an exception object to be set for the file, however this is primarily for use by the fUpload class.
+
+It is also possible to create an fFile object by calling the static [/api/fFile#create `create()`] method. Not only does it create an instance of fFile, but also allows creates a new file on the filesystem. This method requires two parameters, the `$file_path` and the `$contents` to write. 
+
+{{{
+#!php
+$new_file = fFile::create('./output.log', 'This is the string to be stored in the new file.');
+}}}
+
+== Getting Information ==
+
+The fFile class includes a few methods to grab some basic information about a file. These include:
+
+|| '''Method'''     || '''Description''' ||
+|| ::getName()      || Returns the filename of the file as a string ||
+|| ::getExtension() || Returns the extension of the file ||
+|| ::getParent()    || Returns the fDirectory object for the directory containing this file ||
+|| ::getPath()      || Returns a string with the full path to the file ||
+|| ::getSize()      || Returns the size in bytes as an integer, or optionally formatted for easy human readability ||
+|| ::getMimeType()  || Returns the mime type of the file, see the [/api/fFile#getMimeType API docs] for a list of all supported file types ||
+|| ::getMTime()     || Returns an fTimestamp object representing the date and time the file was last modified ||
+|| ::isWritable()   || Indicates if the file can be written to by the current user ||
+
+If you want more specific information about a file, you can pass the output of `getPath()` into the various [http://php.net/filesystem PHP filesystem functions]. 
+
+== Manipulation ==
+
+In most situations, manipulation of a file is going to be a requirement. The following methods provide a straight-forward interface for standard manipulation. Also note that these manipulations can be wrapped in a [/docs/fFilesystem#Transactions filesystem transactions] to allow for rolling back changes in the event of a later error.
+
+|| '''Method'''  || '''Description''' ||
+|| ::read()      || Returns the contents of the file as a string ||
+|| ::write()     || Accepts a string to overwrite the file contents with ||
+|| ::append()    || Appends content to the file ||
+|| ::rename()    || Renames the file to a new filename/path - if no directory `/` is found in the new path, the file is renamed in the current directory ||
+|| ::move()      || Moves the file to a new directory, keeping the existing filename ||
+|| ::duplicate() || Will create a copy of the file, optionally in a different directory. If in a different directory, you can specify if you want an existing file with the same name to be overwritten. ||
+|| ::delete()    || Removes the file from the filesystem. Please note that if inside of a filesystem transaction, this event will be deferred until commit is called, but instances of fFile will act as if the file no longer exists. ||
+|| ::output()    || Will echo the contents of the file to the user, optionally including the appropriate HTTP headers ||
+
+== Outputting ==
+
+When it is necessary to use PHP to control access to files, a file can be sent to a user via the ::output() method. The first parameters, `$headers`, is required and controls whether or not mime-type and filesize headers are included with the file contents. If this is set to `FALSE`, the headers should be manually sent before calling the method.
+
+{{{
+#!php
+// Output the file with relevant headers
+$file->output(TRUE);
+}}}
+
+If included, the second parameter, `$filename`, will send the file as an attachment to the current page instead of using the filename from the current URL.
+
+{{{
+#!php
+// If on index.php, this file will be sent to the user as index.php
+$file->output(TRUE);
+
+// This file will be sent as document.doc
+$file->output(TRUE, 'document.doc');
+}}}
+
+=== Performance Issues ===
+
+When outputting a file, please be certain to turn off any output buffering, whether it be controller by [http://php.net/ob_start `ob_start()`], fTemplating or fBuffer. If output buffering is turned on, the whole contents of the file will be stored in web server memory before being sent to the user. This can obviously cause issues with large files.
+
+Due to the way that PHP prevents overwriting session values, only one page can access the session at a time. If the session was opened on the page before calling `output()` and is not explicitly closed via fSession::close(), the user will not be able to visit any other pages on the site until the download completes. This is obviously more of an issue with large files or slow connections.
+
+== Cloning ==
+
+When an fFile object is cloned, a duplicate of the file is created on the filesystem in the file’s current directory. Essentially `clone` is the same as calling ::duplicate() with no parameters.
+
+{{{
+#!php
+$file  = new fFile('/path/to/file.txt');
+// $file2 will be a new file with the path /path/to/file_copy1.txt
+$file2 = clone $file;
+}}}
+
+== Iteration ==
+
+fFile implements the Iterator interface, meaning that ever fFile object can be used in a foreach loop, with each iteration returning a line from the line. Each line '''will''' include the original line break.
+
+{{{
+#!php
+$file = new fFile('report.csv');
+foreach ($file as $line) {
+    $fields = str_getcsv($line);
+    // …
+}
+}}}

@@ -1,0 +1,27 @@
+= fEmptySetException =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fEmptySetException Class Documentation]'''
+ - [/api/fEmptySetException API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fEmptySetException.php Source Code]
+
+== Exception Classes <<toc skip>> ==
+ - fException
+  - fExpectedException
+   - fAuthorizationException
+   - '''fEmptySetException'''
+   - fNoRemainingException
+   - fNoRowsException
+   - fNotFoundException
+   - fValidationException
+  - fUnexpectedException
+   - fConnectivityException
+   - fEnvironmentException
+   - fProgrammerException
+   - fSQLException
+)))
+
+fEmptySetException is a sub-class of fExpectedException that indicates an fRecordSet does not contain any records. This type of exception will only be thrown by Flourish code when requested via the `tossIfEmpty()` method. 
+
+''This space intentionally left blank''

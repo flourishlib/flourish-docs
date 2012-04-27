@@ -1,0 +1,62 @@
+= Messages List =
+<<toc>>
+
+This page contains resources for use when translating the messages used
+internally by Flourish.
+
+== Downloadable Template ==
+
+A ready-made PHP array is available that includes every string as an array key
+and blank string values to use for the translations. This array can then be used
+with fText to perform translation of internal Flourish messaging. See the
+[/docs/fText fText documentation] for an example.
+
+{{{
+#!raw
+<form action="http://docs.flourishlib.com/messages/" method="get" id="download_template">
+<p>
+<label><strong>Revision</strong></label> <input type="text" name="revision" value="%download_rev%" size="3" /> <input type="submit" value="Download Template" />
+</p>
+</form>
+<script type="text/javascript">
+/*<![CDATA[*/
+$(function() {
+    $('form#download_template').submit(function() {
+        var rev = parseInt($('input[name="revision"]').val());
+        if (rev == NaN) {
+            alert('Please enter a revision number');
+            return false;
+        }
+        if (rev < 850) {
+            alert('Please enter a revision greater than 850');
+            return false;
+        }
+        if (rev > %download_rev%) {
+            alert('Please enter a revision %download_rev% or less');
+            return false;
+        }
+    });
+});
+/*]]>*/
+</script>
+}}}
+
+''If you fill one of these out for a language, please send a copy to
+[mailto:will@wbond.net will@wbond.net] so I may post it on the
+site for others to use also.''
+
+== Translations ==
+
+The following translations have been generously created by the community.
+''It is possible that the messages may be slightly out-of-date due to changes
+in Flourish since the revision listed.''
+
+ - [http://docs.flourishlib.com/translations/en_to_it_855.phps English to
+   Italian] for r855 by [http://gruppoambita.com Gruppo Ambita]
+
+== Linked Reference ==
+
+The following table contains a list of every message used in the current
+revision of Flourish, and their locations in the source code.
+
+[[Include(http://docs.flourishlib.com/messages.php)]]

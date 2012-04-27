@@ -1,0 +1,379 @@
+= fValidation =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fValidation Class Documentation]'''
+ - [/api/fValidation API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fValidation.php Source Code]
+
+<<toc bare>>
+)))
+
+The fValidation class provides an interface for validating standalone forms, such as a contact form. In these situations there are usually a mix of required fields and fields that require specific formatting. In addition, form contents that are emailing will often need to be checked to prevent [http://en.wikipedia.org/wiki/E-mail_injection email header injection] attacks.
+
+== Instantiation ==
+
+The fValidation class must be instantiated before options can be set and the validation can be performed.
+
+{{{
+#!php
+$validator = new fValidation();
+}}}
+
+== Setting Fields and Rules ==
+
+To have the class actually perform any validation it will need to know what fields and rules it is checking. 
+
+=== Simple Field Validation ===
+
+The simplest validation is done by specifying individual fields against data types or input formats.
+
+|| '''Method'''             || '''Description''' ||
+|| ::addRequiredFields()    || ''Requires that the field(s) specified have a value.'' ||
+|| ::addBooleanFields()     || ''Requires that the field(s) specified can be interpreted as a boolean if a value is entered.'' ||
+|| ::addDateFields()        || ''Requires that the field(s) specified can be interpreted as a date if a value is entered.'' ||
+|| ::addFloatFields()       || ''Requires that the field(s) specified contain a floating point/decimal number if a value is entered.'' ||
+|| ::addIntegerFields()     || ''Requires that the field(s) specified contain an intege if a value is entered.'' ||
+|| ::addEmailFields()       || ''Requires that the fields specified are formatted like an email address if a value is entered.'' ||
+|| ::addEmailHeaderFields() || ''Checks field(s) for line breaks to prevent email header injection. Should be used whenever embedding user input into email headers.'' ||
+|| ::addURLFields()         || ''Requires that the field(s) specified are formatted like a full URL (http://example.com) if a value is entered.'' ||
+
+Each of these methods takes any number of parameters with each parameter being a field name. Subsequent calls to the methods will add to the list of fields.
+
+{{{
+#!php
+// Require that name and email be filled in
+$validator->addRequiredFields('name', 'email');
+
+// Require that name and email be filled in, and that the email field contains an email address
+$validator->addRequiredFields('name');
+$vaildator->addRequiredFields('email');
+$validator->addEmailFields('email');
+
+// Require that name be filled in, and if birthday is specified that
+// it will be interpreted as a date or time by fTimestamp
+$validator->addRequiredFields('name');
+$validator->addDateFields('birthday');
+}}}
+
+=== Rule Validation ===
+
+More advanced validation rules can be checked by using the following methods.
+
+==== addCallbackRule() ====
+
+::addCallbackRule() accepts a `$field` to check, a `$callback` to execute and retrieve a boolean result from, and a `$message` to use when the result is `FALSE`.
+
+{{{
+#!php
+function check_length($value) {
+    return strlen($value) >= 8;
+}
+$validator->addCallbackRule('password', 'check_length', 'Please enter at least 8 characters');
+}}}
+
+==== addConditionalRule() ====
+
+The method ::addConditionalRule() allows requiring one or more fields, if another field (or set of fields) has any value, or a value from a pre-defined set. The first parameter `$main_fields` accepts a single string field, or an array of fields. The second parameter, `$conditional_values`, accepts `NULL` or an array of values. The third parameter, `$conditional_fields`, accepts a single string field, or an array of fields.
+
+If `$conditional_values` is `NULL`, and value present in any of the `$main_fields` will cause all `$conditional_fields` to be required. If `$conditional_values` is an array of values, if any of the `$main_fields` contains one of those values, all of the `$conditional_columns` will be required.
+
+{{{
+#!php
+// If the address, city, state_province, country or postal_code is filled
+// in, require that at least the address and city are filled in
+$validator->addConditionalRule(
+    array('address', 'city', 'state_province', 'country', 'postal_code'),
+    NULL,
+    array('address', 'city')
+);
+
+// If the country is US or Canada, require the state_province and postal_code
+$validator->addConditionalRule('country', array('US', 'CA'), array('state_province', 'postal_code'));
+}}}
+
+==== addFileUploadRule() ====
+
+When creating a form that includes file uploads via fUpload, the ::addFileUploadRule() method will combine the validation performed by fUpload with the rest of the fValidation fields and rules. The first parameter is the file upload `$field`, the second parameter is the fUpload instance, `$uploader`. All validation options for the file, including if it is required, are set via the fUpload object.
+
+{{{
+#!php
+$uploader = new fUpload();
+// Make the file upload optional
+$uploader->setOptional();
+$uploader->setMaxSize('1MB');
+$validator->addFileUploadRule('attachment', $uploader);
+}}}
+
+If a file upload field being validated is part of an array of file uploads, the array index can be passed as the second parameter to `addFileUploadRule()`, and the `$uploader` parameter should be passed as the third parameter.
+
+{{{
+#!php
+$uploader = new fUpload();
+// Validate just the first attachment
+$validator->addFileUploadRule('attachment', 0, $uploader);
+}}}
+
+==== addOneOrMoreRule() ====
+
+The method ::addOneOrMoreRule() accepts two or more `$field` parameters, and requires that at least one of them has a value.
+
+{{{
+#!php
+$validator->addOneOrMoreRule('email', 'phone', 'cell_phone');
+}}}
+
+==== addOnlyOneRule() ====
+
+The method ::addOnlyOneRule() accepts two or more `$field` parameters, and requires that exactly one of them has a value. It is considered an error if none, or more than one have a value.
+
+{{{
+#!php
+$validator->addOnlyOneRule('ssn', 'ein');
+}}}
+
+==== addRegexRule() ====
+
+The ::addRegexRule() method allows validating non-blank values against a [http://php.net/pcre Perl-compatible regular expression] (PCRE). The first parameter is the `$field` to validate, followed by the `$regex` to test and the `$message` to use if the value does not match the expression.
+
+{{{
+#!php
+// Require the value is a length in in or cm
+$validator->addRegexRule('length', '#^\d+\s*(in|cm)$#', 'Please enter a length');
+}}}
+
+==== addValidValuesRule() ====
+
+A value can be tested against a set of valid values by calling the method ::addValidValuesRule(). This method accepts a `$field` to validate, followed by an array of `$valid_values`.
+
+{{{
+#!php
+// Require the value be 'yes', 'no' or 'maybe'
+$validator->addValidValuesRule('answer', array('yes', 'no', 'maybe'));
+}}}
+
+== Performing Validation ==
+
+Once all of the fields and rules have been set, the ::validate() method will check them all against the current request using fRequest. If any errors are found an fValidationException will be thrown containing an explanation of the errors that occurred.
+
+The `validate()` method will always evaluate all fields and rules so users will not have to submit a form multiple times to figure out everything they are doing wrong. Here is a full example:
+
+{{{
+#!php
+try {
+    $validator = new fValidation();
+    
+    $validator->addRequiredFields('name');
+    $validator->addOneOrMoreRule('email', 'phone'); 
+    $validator->addEmailFields('email');
+    $validator->addEmailHeaderFields('name', 'email');
+    $validator->addDateFields('birthday');
+    $validator->addURLFields('my_blog');
+
+    $validator->validate();
+
+    // Here would be the action of the contact form, such as sending an email
+
+} catch (fValidationException $e) {
+    fMessaging::create('error', $e->getMessage());
+}
+}}}
+
+The exception message that is generated will contain HTML including `<p>The following problems were found:</p>` followed by a `<ul>` containing one `<li>` for each error detected. Below are some examples.
+
+{{{
+#!html
+<p>The following problems were found:</p>
+<ul>
+    <li>Name: Please enter a value</li>
+    <li>Email, Phone: Please enter at least one</li>
+</ul>
+}}}
+
+{{{
+#!html
+<p>The following problems were found:</p>
+<ul>
+    <li>Email: Please enter an email address in the form name@example.com</li>
+</ul>
+}}}
+
+=== Returning Messages ===
+
+If an exception is not desired, an array of individual error messages can be retrieved by passing `TRUE` to the first parameter of ::validate(), `$return_messages`. The returned array will have keys that are the field name for individual fields, or the field names joined by `,`s for multiple fields. The values will be the error messages, including formatted field names.
+
+{{{
+#!php
+// Return the messages instead of throwing an exception
+$messages = $validator->validate(TRUE);
+}}}
+
+The `$messages` array will have a structure such as:
+
+{{{
+#!php
+array(
+    'name'        => 'Name: Please enter a value',
+    'email,phone' => 'Email, Phone: Please enter at least one'
+)
+}}}
+
+If the messages are being used for inline validation, it may be useful to remove the field names from the error messages. The field names can be removed by passing `TRUE` to the second parameter of ::validate(), `$remove_field_names`.
+
+{{{
+#!php
+$messages = $validator->validate(TRUE, TRUE);
+}}}
+
+In this case, the `$messages` array would look like:
+
+{{{
+#!php
+array(
+    'name'        => 'Please enter a value',
+    'email,phone' => 'Please enter at least one'
+)
+}}}
+
+=== Throwing an Exception and Returning Messages ===
+
+Often the most usable way to notify users of an error is to produce a full error message listing all errors on a form, but also to individually highlight the fields with errors. The `$return_messages` parameter and fValidationException can be used together to provide such functionality.
+
+First, the messages should be returned by passing `TRUE` to the `$return_messages` parameter. The static method fValidationException::removeFieldNames() can be used to remove the field names from the error messages for inline field highlighting and then the fValidationException constructor can be used to generate a full error message.
+
+{{{
+#!php
+try {
+    // ...
+    
+    $errors       = $validator->validate(TRUE);
+    $field_errors = fValidationException::removeFieldNames($errors);
+    if ($errors) {
+        throw new fValidationException(
+            'The following problems were found:',
+            $errors
+        );
+    }
+    
+    // ...
+    
+} catch (fValidationException $e) {
+    // fMessaging allows for creating session-based one-time-use messages
+    fMessaging::create('error', $e->getMessage();
+    fMessaging::create('field_errors', $field_errors);
+}
+}}}
+
+== Message Customization ==
+
+Three methods exist to customize the messages generated, ::overrideFieldName(), ::addRegexReplacement() and ::addStringReplacement(). Both regular expression and string replacements are suitable for changing error messages to use slightly different wording. More advanced message modification can be done library wide by using the features of fText.
+
+=== overrideFieldName() ===
+
+By default, all field names are converted from `field_name` to `Field Name` for all error messages by fGrammar::humanize(). This conversion may be incorrect for non-English words or acronyms. ::overrideFieldName() accepts a `$field` and the `$name` to use for it.
+
+{{{
+#!php
+$validator->overrideFieldName('zip_code', 'ZIP Code');
+}}}
+
+It is also possible to pass an associative array with fields as the keys and names as the values.
+
+{{{
+#!php
+$validator->overrideFieldName(array(
+    'zip_code'       => 'ZIP Code',
+    'state_province' => 'State/Province'
+));
+}}}
+
+`overrideFieldName()` can be called any number of times in either the two parameter, or one parameter signatures. If a field name is overridden more than once, the last override will be the one used.
+
+=== addRegexReplacement() ===
+
+::addRegexReplacement() accepts two parameters, the [http://php.net/pcre Perl-compatible regular expression] to `$search` for and the string to `$replace` it with. This search and replace action is performed right before messages are reordered.
+
+{{{
+#!php
+$validator->addRegexReplacement('#Please enter a value$#', 'Please enter something');
+}}}
+
+''Please note that `$replace` should be a string with all normal `$` and `\` characters escaped with a `\` since [http://php.net/preg_replace `preg_replace()`] is used under-the-hood.'' Because `preg_replace()` is used, it is also possible to use back-references in `$replace`.  
+
+{{{
+#!php
+// This will change "Name: Please enter a value" to "Please enter a value for Name"
+$validator->addRegexReplacement('#^(.*?): (.*)$#', '\2 for \1');
+}}}
+
+It is also possible to pass an associative array as a single with they keys being `$search` expressions and the values being `$replace` strings.
+
+{{{
+#!php
+$validator->addRegexReplacement(array(
+    '#Please enter a value$#' => 'Please enter something',
+    '#^(.*?): (.*)$#'          => '\2 for \1'
+));
+}}}
+
+`addRegexReplacement()` can be called any number of times, and the replacements will be added together. If a search value is passed more than once, the `$replace` parameter from the last method call will be the one used.
+
+=== addStringReplacement() ===
+
+The ::addStringReplacement() method works exactly like ::addRegexReplacement(), except that the first parameter is a string to `$search` for and the second is plain string to `$replace` with. `$replace` does not require any escaping and obviously does not support back-references.
+
+{{{
+#!php
+$validator->addStringReplacement('Please enter a value', 'Please enter something');
+}}}
+
+Also supported is a single parameter containing an associative array with the key being a string to search for and the value being the string to replace it with.
+
+{{{
+#!php
+$validator->addStringReplacement(array(
+    'Please enter a value'        => 'Please enter something',
+    'Please enter a whole number' => 'Please enter an integer'
+));
+}}}
+
+`addStringReplacement()` can be called any number of times to add multiple search/replace pairs. If the same search string is passed more than once, the replace string from the last method call will be used.
+
+== Ordering Errors ==
+
+The order in which error messages appear in an exception, or the returned messages array, is based upon what order the class checks the various field and rules. Thus, while sometimes the `Email` field may appear first in the list, other times it may appear last. The ::setMessageOrder() method allows for consistent ordering of messages.
+
+`setMessageOrder()` accepts any number of parameters, which are strings to search for. Any message that contains the first parameter will be listed first, any message that contains the second parameter will be listed second, and so on. Matches are done in a longest match first to ensure accidental matches don’t occur. Errors that do not match any parameter are left at the end.
+
+With the following exception message:
+
+{{{
+The following problems were found:
+ - Last Name: Please enter a value
+ - First Name: Please enter a value
+ - Comments: Please enter a value
+ - Company Email: Please enter a value
+ - Personal Email: Please enter an email address in the form name@example.com
+}}}
+
+And calling `setMessageOrder()` with the following parameters:
+
+{{{
+#!php
+$validator->setMessageOrder('First Name', 'Last Name', 'Email', 'Company Email', 'Comments');
+}}}
+
+Will result in the message being changed to:
+
+{{{
+The following problems were found:
+ - First Name: Please enter a value
+ - Last Name: Please enter a value
+ - Personal Email: Please enter an email address in the form name@example.com
+ - Company Email: Please enter a value
+ - Comments: Please enter a value
+}}}
+
+Notice that `Personal Email` is listed before `Company Email` - this is because the fourth parameter `'Company Email'` was a longer match and the error was placed into position 4, while `Personal Email` was matched by the shorter parameter 3 and was placed in position 3.
+
+Messages that match the parameters will always be ordered in the same relative order as the parameters, although they may not have the exact same position. This may occur if there is no error that matches a parameter, or if multiple messages match a parameter.

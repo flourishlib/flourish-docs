@@ -1,0 +1,37 @@
+= Internationalization and Localization =
+
+When creating code for audiences in more than one language, it is necessary to
+write it with
+[http://en.wikipedia.org/wiki/Internationalization_and_localization
+internationalization (i18n) and localization (L10n)] in mind.
+
+A [http://en.wikipedia.org/wiki/Locale locale] is a combination of a language
+and standards for formatting of numbers, date, currencies and more. Normally an
+locale is identified by a combination of a country and language code. Different
+languages require different sort ordering (or
+[http://en.wikipedia.org/wiki/Collation collation]) for words and numbers often
+have different thousands and decimal separators. Other differences include date
+formatting and the words used for days and months.
+
+Internationalization is the act of writing code than can be customized to work
+in multiple locales. Localization is the act of customizing code to work in a
+specific locale. Flourish is written with internationalization in mind, however
+there is no localization done, that is left for the teams working on individual
+projects.
+
+== Internationalized Classes ==
+
+The following classes in Flourish are in some way internationalized, thus
+capable of being localized.
+ 
+ - fGrammar
+ - fMoney
+ - fNumber
+ - fText
+ - fTimestamp
+
+Please note that every class in Flourish that creates messages hooks into fText
+(once loaded) and thus all messages can be translated through the features
+available in fText. The [/docs/MessagesList message list page] includes a list
+of every message created by a Flourish class, along with the location in the
+source code.

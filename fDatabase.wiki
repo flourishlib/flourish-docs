@@ -1,0 +1,430 @@
+= fDatabase =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fDatabase Class Documentation]'''
+ - [/api/fDatabase API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fDatabase.php Source Code]
+
+<<toc bare>>
+
+== Database Classes <<toc skip>> ==
+ - '''fDatabase'''
+ - fNoRowsException
+ - fResult
+ - fSQLException
+ - fSQLTranslation
+ - fSQLSchemaTranslation
+ - fSchema
+ - fStatement
+ - fUnbufferedResult
+)))
+
+The fDatabase class abstracts interaction with [http://mysql.com MySQL], [http://postgresql.org PostgreSQL], [http://sqlite.org SQLite], [http://microsoft.com/sql/ Microsoft SQL Server] (MSSQL), [http://www.oracle.com/database/index.html Oracle] and [http://www.ibm.com/db2 IBM DB2] databases.
+
+== Supported Databases ==
+
+The fDatabase class allows for interaction with a number of popular [http://en.wikipedia.org/wiki/Comparison_of_relational_database_management_systems relational database management systems]. Rather than requiring a specific PHP extension to interact with each of these DBs, Flourish shows its portable nature by automatically detecting and using the installed extension for the database type specified.
+
+Here is a list of the supported DBs and the PHP extensions that are currently supported:
+
+|| '''DB'''                                     || '''PHP Extensions'''||
+|| [http://microsoft.com/sql/ MSSQL]            || [http://msdn.microsoft.com/en-us/library/cc296221.aspx sqlsrv], [http://php.net/pdo_dblib pdo_dblib], [http://php.net/mssql mssql] (or [http://php.net/sybase sybase]) ||
+|| [http://mysql.com MySQL]                     || [http://php.net/mysql mysql], [http://php.net/mysqli mysqli], [http://php.net/pdo_mysql pdo_mysql] ||
+|| [http://www.oracle.com/database/index.html Oracle] || [http://php.net/oci8 oci8], [http://php.net/pdo_oci pdo_oci] ||
+|| [http://postgresql.org PostgreSQL]           || [http://php.net/pgsql pgsql], [http://php.net/pdo_pgsql pdo_pgsql] ||
+|| [http://sqlite.org SQLite]                   || [http://php.net/pdo_sqlite pdo_sqlite] (for v3.x), [http://php.net/sqlite sqlite] (for v2.x)||
+|| [http://www.ibm.com/db2 DB2]                 || [http://php.net/ibm_db2 ibm_db2], [http://php.net/pdo_ibm pdo_ibm] ||
+
+== Connecting ==
+
+As a first step to interacting with a database, a connection needs to be made. This is done by creating a new instance of the fDatabase class. The [/api/fDatabase#__consruct constructor] takes the database `$type`, `$name`, `$username`, `$password`, `$server`, `$port` and `$timeout` as parameters. MSSQL, MySQL, Oracle and PostgreSQL databases require all parameters except for the `$server`, `$port` and `$timeout`. SQLite databases only require the `$type` and `$name` parameters.
+
+{{{
+#!php
+// Connecting to a MSSQL database on localhost running on the default port
+$mssql_db  = new fDatabase('mssql', 'my_database', 'username', 'password');
+
+// Connecting to a MySQL database on the server example.com
+$mysql_db  = new fDatabase('mysql', 'my_database', 'username', 'password', 'example.com');
+
+// Connecting to an Oracle database on localhost
+$oracle_db = new fDatabase('oracle', 'my_database', 'username', 'password');
+
+// Connecting to a PostgreSQL database on the current server using a non-standard port
+$pgsql_db  = new fDatabase('postgresql', 'my_database', 'username', 'password', 'localhost', 1234);
+
+// Connection to an SQLite database
+$sqlite_db = new fDatabase('sqlite', '/path/to/database/file');
+
+// Connecting to a remote DB2 server
+$db2_db    = new fDatabase('db2', 'my_database', 'username', 'password', 'remote.host.com', 60000);
+
+// Connect on the default port with a timeout of 1 second
+$pgsql_db  = new fDatabase('postgresql', 'my_database', 'username', 'password', 'localhost', NULL, 1);
+}}}
+
+It is possible to connect to a MySQL database using a socket connection by passing `sock:/path/to/the/socket` as the `$server` parameter. For a PostgreSQL socket connection, simply pass `sock:` in the `$server` parameter.
+
+The `$timeout` parameter accepts integers, and represents the number of seconds after which to stop trying to connect to the database.
+
+=== Lazy Connections ===
+
+When creating an fDatabase instance, a connection to the server is not automatically established. Instead, once a response is required from the server, then fDatabase will establish the connection. To force a connection at a specific time, usually for the sake of handling connection exceptions, call the method ::connect().
+
+{{{
+#!php
+try {
+    $db = new fDatabase('postgresql', 'my_database', 'username', 'password');
+    // Please note that calling this method is not required, and simply
+    // causes an exception to be thrown if the connection can not be made
+    $db->connect();
+
+} catch (fAuthorizationException $e) {
+    $e->printMessage();
+}
+}}}
+
+=== Connection Exceptions ===
+
+When connecting to a server, fDatabase can throw either an fAuthorizationException when a username or password is incorrect, or an fConnectivityException when a server does not respond, a hostname lookup fails, or the database specified can not be accessed.
+
+Catching both fAuthorizationException and fConnectivityException objects can be useful for handling validation of user-supplied connection parameters. 
+
+{{{
+#!php
+try {
+    $db = new fDatabase($type, $database, $username, $password, $server, $port);
+    $db->connect();
+} catch (fAuthorizationException $e) {
+    fMessaging::create('error', $e->getMessage());
+} catch (fConnectivityException $e) {
+    fMessaging::create('error', $e->getMessage());
+}
+}}}
+
+Catching fConnectivityException objects can also be used to handle failover in replicated database environments.
+
+{{{
+#!php
+// Use APC to cache the server status
+$cache = new fCache('apc');
+
+$servers = array('server1', 'server2', 'server3');
+foreach ($servers as $server) {
+    try {
+        // Skip servers that are down
+        if ($cache->get($server . '-down')) { continue; }
+
+        // Use a one second timeout for fast failover
+        $db = new fDatabase('postgresql', 'my_database', 'username', 'password', $server, NULL, 1);
+        $db->connect();
+        break;
+    
+    // If the connection failed, mark the server as down for 5 minutes
+    } catch (fConnectivityException $e) {
+        $cache->set($server . '-down', TRUE, 300);
+    }
+}
+}}}
+
+=== Login Information (Security) ===
+
+''Please note that the database password is stored in the object, and may be exposed via [http://php.net/print_r `print_r()`], fCore::expose(), or similar methods. fResult, fUnbufferedResult, fSchema, fStatement and fSQLTranslation objects also contain a reference to an fDatabase object and thus could expose password data in a similar fashion.''
+
+== Queries ==
+
+Once you have established a databases connection you can start executing queries using the ::query() method. This method executes a query and returns an instance of the fResult class to access returned rows and get information about the query that was executed.
+
+''Please note this method executes queries in a buffered manner. This means that all results are loaded into PHP memory, which can cause performance issues for very large result sets (in the order of 500+ rows). For large result sets, [#UnbufferedQueries unbuffered queries] will generally yield better performance (at the cost of certain other restrictions).''
+
+{{{
+#!php
+// Execute a SQL query and retrieve all returned rows
+$result = $mysql_db->query('SELECT * FROM users LIMIT 5');
+foreach ($result as $row) {
+    // Access the row
+}
+}}}
+
+For more information about what can be done with a query result, please see the fResult page.
+
+== Unbuffered Queries ==
+
+Unbuffered queries will often have better performance for large results sets, however the exact details can vary from database driver to driver. Many database drivers will only allow a single unbuffered query to be active at any point. If another database query is called, it will either cause the previous call to close or will fail itself.
+
+Calling ::unbufferedQuery() will return an instance of fUnbufferedResult. This is similar to an fResult object, however does not have the ability to retrieve the number of returned rows, or seek to different rows in the set.
+
+''Please note that some database/extension combinations do not provide unbuffered query functionality, and thus will not necessarily gain the same performance benefits as others. The following database extensions are known to have unbuffered benefits: pdo_*, mysql, mysqli, sqlite.''
+
+{{{
+#!php
+$result = $mysql_db->unbufferedQuery('SELECT * FROM users');
+foreach ($result as $row) {
+    // Don't execute another query in here or the original result will be destroyed
+}
+}}}
+
+== Non-Queries ==
+
+In situations where no result is required to be iterated over, such as an `UPDATE` statement, the ::execute() method can be used. This method takes all of the same parameters as ::query(), however it does not return an fResult object.
+
+{{{
+#!php
+$db->execute("UPDATE users SET name = %s WHERE name = %s", 'Will', 'William');
+}}}
+
+Like the ::query() and ::unbufferedQuery() methods, an fSQLException will be thrown if a SQL error occurs.
+
+== Cross-Database SQL ==
+
+One of the features fDatabase provides for portable code is the ability to run SQL queries that work across all supported databases. The [/docs/FlourishSql Flourish SQL] page includes a list of all supported SQL syntax and what it is translated into for each different database engine.
+
+The two methods ::translatedQuery() and ::unbufferedTranslatedQuery() work exactly the same as ::query() and ::unbufferedQuery() except that the SQL statements are translated from [/docs/FlourishSql Flourish SQL] into the SQL dialect supported by the current database.
+
+For instance, if you are familiar with MSSQL databases, you will know that the `LIMIT` syntax is not valid, but instead it required you to use the `TOP` keyword. The following PHP:
+
+{{{
+#!php
+$result = $mssql_db->translatedQuery("SELECT * FROM users LIMIT 5");
+}}}
+
+Would actually be executed as the following SQL:
+
+{{{
+#!sql
+SELECT TOP 5 * FROM users
+}}}
+
+== Transactions ==
+
+''If you aren't familiar with what database transactions are, please read the Wikipedia page [http://en.wikipedia.org/wiki/Database_transaction Database transaction] first.''
+
+The fDatabase class by default executes all SQL queries immediately, in what is referred to as auto-commit mode. To perform one or more queries in a transaction that can be rolled back or commited, basic SQL queries are used instead of method calls.
+
+fDatabase does ''minimal'' translation of transaction SQL queries since there isn't a single consistent set of commands for all supported databases. Each of these queries will work with any of the supported databases.
+
+{{{
+#!php
+// Start a transaction
+$db->query('BEGIN');
+
+// Commit changes made during this transaction
+$db->query('COMMIT');
+
+// Rollback changes that have not been committed
+$db->query('ROLLBACK');
+}}}
+
+''Please note that MySQL MyISAM tables do '''not''' support transactions and will auto-commit even if a transaction has been started. Please see the [/docs/OrmConventions#MySQLStorageEngine ORM Conventions: MySQL Storage Engine] section for details about this and other drawbacks to using MyISAM.''
+
+== Escaping Data (Security) ==
+
+If you have any experience with database interaction you are probably familiar with [http://en.wikipedia.org/wiki/SQL_injection SQL injection] attacks. For this reason, and the fact that the supported databases have varying representations for the various data types, it is recommended that all data going in and coming out of the database be escaped and unescaped respectively.
+
+Arbitrary SQL escaping data can be done at any point by the ::escape() method, but should normally be done when calling ::query() (also `translatedQuery()`, `unbufferedQuery()`, `unbufferedTranslatedQuery()`).
+
+The `query` methods accept `$sql` as the first parameter, followed by the required number of values to bind/inject into the query. This injection is done via data type placeholders in the `$sql`, and fully escapes the values based on the data type. These placeholder are similar to some of the formatting strings in [http://php.net/sprintf sprintf()]. Here is a list of the various placeholders and what data type the value will be escaped as:
+
+ - `'%l'`: ''blob''
+ - `'%b'`: ''boolean''
+ - `'%d'`: ''date''
+ - `'%f'`: ''float''
+ - `'%i'`: ''integer''
+ - `'%s'`: ''string''
+ - `'%t'`: ''time''
+ - `'%p'`: ''timestamp''
+
+{{{
+#!php
+// Escape a user id and name into the SQL statement and execute it
+$result = $db->query('SELECT * FROM users WHERE age = %i AND last_name = %s', 18, "O'Shea");
+}}}
+
+The query methods by default do ''not'' use prepared statements, but instead create fully escaped SQL commands and execute them. For repeat queries or large string/binary values, 32k+ for Oracle/DB2, larger for other databases, a [#PreparedStatements prepared fStatement object] should be passed in place of the SQL string.
+
+When using the `escape()` method, two or more parameters are required. The first, `$sql_or_type`, allows passing the data type to be escaped, or an SQL statement with data type placeholders. The second (and subsequent) parameter, `$value` is the PHP value to escape.
+
+The permissible data types to pass into `$sql_or_type` include:
+
+ - `'blob'`
+ - `'boolean'`
+ - `'date'`
+ - `'float'`
+ - `'integer'`
+ - `'string'`
+ - `'time'`
+ - `'timestamp'`
+
+Escaping not only protects against SQL injection attacks, but also ensures that you are comparing proper data types in your SQL since all values are validated before being escaped. Below are some examples using `escape()` in various ways:
+
+{{{
+#!php
+// Escape a string
+$sql_string = $db->escape('string', "This ain't gonna break your SQL");
+
+// Escape a boolean
+$sql_boolean = $db->escape('boolean', TRUE);
+
+// Escape a float
+$sql_float   = $db->escape('%f', '12.39');
+}}}
+
+The above statements would produce the following SQL (in a SQLite database):
+
+{{{
+#!sql
+'This ain''t gonna break your SQL'
+
+'1'
+
+12.39
+}}}
+
+In addition to escaping single values for SQL, it is also possible to escape an array of values. When passing a data type or placeholder as the first parameter and the array of values as the second, an array of escaped values will be returned.
+
+{{{
+#!php
+$escaped_integers = $db->escape('integer', array(1, 5, 'not an int'));
+}}}
+
+If the first parameter is a SQL string, the array of values will be inserted into the SQL, separated by commas.
+
+{{{
+#!php
+// This will return "SELECT * FROM users WHERE user_id IN (1, 3, 7, 10)"
+$sql = $db->escape(
+    "SELECT * FROM users WHERE user_id IN (%i)",
+    array(1, 3, 7, 10)
+);
+}}}
+
+== Escaping Identifiers ==
+
+All databases support quoting table and columns to allow SQL reserved words to be used as identifiers. The SQL standard is to use double quotes. Just like data-type placeholders, there is an identifier placeholder, `%r`, that can be used with ::escape() and the various ::query() methods.
+
+{{{
+#!php
+$result = $db->query("SELECT * FROM %r WHERE %r = %i", 'users', 'user_id', 1);
+}}}
+
+This functionality will only be useful when dynamically creating SQL commands. With static SQL, developers can simply wrap identifiers in double quotes themselves.
+
+{{{
+#!php
+$result = $db->query('SELECT * FROM "users" WHERE "user_id" = %i', 1);
+}}}
+
+== Unescaping Data ==
+
+In addition to databases requiring that data going in be formatted a certain way, many database/driver combinations in PHP don’t deliver values back in the appropriate PHP data type. The ::unescape() method provides a consistent way to ensure that all data coming out of the database is stored correctly in PHP.
+
+The first parameter, `$data_type`, should be one of the string data type names or a data type placeholder as convered with the `escape()` method. The second parameter, `$value`, is the value being returned from the database.
+
+Here are some examples of using the `unescape()` method:
+
+{{{
+#!php
+
+$is_authorized = $db->unescape('boolean', $row['is_authorized']);
+
+$date_created  = $db->unescape('%d', $row['date_created']);
+}}}
+
+''Please note that if you are using the [/docs/ObjectRelationalMapping ORM] in Flourish, unescaping will be done automatically.''
+
+== Prepared Statements ==
+
+Prepared statements can improve performance when working with a query that will be executed multiple times with different sets of data. The ::prepare() and  ::translatedPrepare() methods accept a single parameter, `$sql`, which should contain the SQL statement to prepare. They both return an fStatement object which can in turn be passed to ::execute(), ::query() or ::unbufferedQuery() in place of a SQL string.
+
+{{{
+#!php
+$statement = $db->prepare("INSERT INTO users (first_name, last_name) VALUES (%s, %s)");
+
+$db->query($statement, 'Will', 'Bond');
+$db->query($statement, 'John', 'Smith');
+}}}
+
+Just like with ::query() and ::translatedQuery(), the values for the placeholders are passed as parameters after the fStatement object.
+
+=== Performance ===
+
+Computation is saved since the placeholders are parsed only when the statement is created, instead of upon every execution. If ::translatedPrepare() is called, the SQL translation is also performed only once.
+
+In addition to Flourish level optimizations, many databases and PHP database extensions support prepared statements and may improve performance by caching query plans. For the databases/extensions that don't support prepared statements, a prepared statement will be executed behind the scenes using the normal ::query() method.
+
+''Please note, due to the way that fDatabase is written, prepared statements are '''not necessary''' to prevent SQL injection attacks.''
+
+=== Limitations ===
+
+The one limitation of using prepared statements instead of a normal query is that multiple values can not be passed for a placeholder. For those situations, ::execute(), ::query() or ::translatedQuery() should be used instead.
+
+{{{
+#!php
+// This will NOT work
+$statement = $db->prepare("SELECT * FROM users WHERE user_id IN (%i)");
+$res       = $db->query($statement, array(1, 2, 3));
+foreach (res as $row) {
+    // …
+}
+}}}
+
+== Debugging ==
+
+There is some useful debugging functionality built into the class that can help when diagnosing SQL issues. If ::enableDebugging() or fCore::enableDebugging() (for global debugging) is called with `TRUE`, the fDatabase class will display each SQL statement and how long it took to perform. In addition, when the class is destructed, a total SQL execution time will be output.
+
+{{{
+#!php
+// Enable SQL statement printing
+$db->enableDebugging(TRUE);
+}}}
+
+== Caching ==
+
+Both PostgreSQL and Oracle databases require some schema information about the database to properly fetch the last generated auto-incrementing primary key that is generated from an `INSERT` SQL statement. The fDatabase class will automatically retrieve that schema information, however in the interest of performance, you may wish to cache the results.
+
+Along a similar vein, MSSQL databases don't support UTF-8 as the character set for non-national data types, so the fDatabase class will determine the database’s character set to ensure proper transcoding to UTF-8 is performed.
+
+The ::enableCaching() method accepts an instance of the fCache class, and will save this schema information so it does not need to be fetched on each page load.
+
+{{{
+#!php
+$db->enableCaching(new fCache('file', '/path/to/db.cache'));
+}}}
+
+The method ::clearCache() will clear out the cached information, which would be useful when the database schema changes.
+
+When using the [/docs/ObjectRelationalMapping Flourish ORM], the fORM class provides some [/docs/fORM#SchemaCaching useful caching functionality] that will automatically clear the cache when database errors occur.
+
+== Hooks ==
+
+One of the most advanced features of fDatabase is the ability to be able to pass all SQL to a callback at various points in execution to allow for modification or logging. The method ::registerHookCallback() accepts two parameters, the `$hook` to register for and the `$callback` to register.
+
+There are three different hooks avaliable, `'unmodified'`, `'extracted'` and `'run'`. The `'unmodified'` hook is called with the raw SQL passed to fDatabase, the `'extracted'` hooks provides the SQL with all string literals extracted, and the `'run'` hook provides the SQL after it has been executed.
+
+The [/api/fDatabase#registerHookCallback API documentation] has details about the required method signatures for each callback. Below are some examples of usage:
+
+{{{
+#!php
+// Using the 'extracted' hook to collapsing excess whitespace for easier to read logs
+function trim_sql($db, &$sql, &$values) {
+    $sql = preg_replace('#\s+#', ' ', $sql);
+}
+$db->registerHookCallback('extracted', 'trim_sql');
+
+
+// Using the 'run' hook for logging of slow queries
+function log_sql($db, $statement, $query_time, $result) {
+    // Don't log queries unless they take half a second or more
+    if ($query_time < 0.5) { return; }
+    
+    // This handles prepared statements since the statement and values are separate
+    if (is_array($statement)) {
+        $sql = '"' . $statement[0]->getSQL() . '" with the values: ' . join(", ", array_map('fCore::dump', $values));
+    } else {
+        $sql = '"' . $statement . '"';
+    }
+    echo 'The following query took ' . $query_time . " seconds: \n" . $sql;
+}
+$db->registerHookCallback('run', 'log_sql');
+}}}

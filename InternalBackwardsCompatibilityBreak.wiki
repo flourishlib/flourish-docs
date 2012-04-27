@@ -1,0 +1,96 @@
+= Internal Backwards Compatibility Breaks =
+
+''See also non-internal [/docs/BackwardsCompatibilityBreak backwards compatibility breaks]''
+
+Public methods flagged with the PHPDoc tag `@internal` and all protected methods
+and attributes are considered internal to Flourish and are subject to change
+even in minor revisions or during the beta. Below is a list of changes that
+affect internal code.
+
+Normally this list will only be applicable if you write ORM plugins or mess
+around with the ORM internals.
+
+== [https://github.com/flourishlib/flourish-classes/commit/89cc8eeb Revision 881] ==
+
+Changed fORM::parseMethod() to not underscorize the subject of the method.
+
+== [https://github.com/flourishlib/flourish-classes/commit/6d3c4b62 Revision 867] ==
+
+Changed the structure of the array returned from fSQLTranslation::translate() to
+include a number plus `:` before the original SQL in the array keys.
+
+== [https://github.com/flourishlib/flourish-classes/commit/30b77654 Revision 720] ==
+
+Removed:
+ - `fORMDatabase::addTableToKeys()`
+ - `fORMDatabase::addTableToValues()`
+ - `fORMDatabase::escapeBySchema()`
+ - `fORMDatabase::escapeByType()`
+
+Rewrote:
+ - `fORMDatabase::createHavingClause()` to fORMDatabase::addHavingClause()
+ - `fORMDatabase::createOrderByClause()` to fORMDatabase::addOrderByClause()
+ - `fORMDatabase::insertFromAndGroupByClauses()` to
+   fORMDatabase::injectFromAndGroupByClauses()
+
+Added the `$schema` parameter to the beginning of:
+ - fORMSchema::getRoute()
+ - fORMSchema::getRouteName()
+ - fORMSchema::getRoutes()
+ - fORMSchema::isOneToOne()
+
+Added the `$class` parameter to the beginning of fORMRelated::storeManyToMany() 
+
+== [https://github.com/flourishlib/flourish-classes/commit/fbe71f0b Revision 659] ==
+
+fORMRelated::createRecord() now has an extra parameter in the middle,
+`$related_records`. `fORMRelated::storeOneToMany()` was renamed to
+fORMRelated::storeOneToStar().
+
+== [https://github.com/flourishlib/flourish-classes/commit/b68ba1c1 Revision 639] ==
+
+Changed fActiveRecord::hash() from a protected method to a static
+public/internal method that requires the class name for non-fActiveRecord values
+
+== [https://github.com/flourishlib/flourish-classes/commit/3bca645f Revision 616] ==
+
+The method signatures for fORMRelated::validate() and
+fORMValidation::validateRelated() changed
+
+== [https://github.com/flourishlib/flourish-classes/commit/35163816 Revision 603] ==
+
+The following methods no longer accept an object instance, just a class name:
+
+ - fORM::checkHookCallback()
+ - fORM::getActiveRecordMethod()
+ - fORM::getColumnName()
+ - fORM::getRecordName()
+ - fORM::replicate()
+ - fORM::tablize()
+
+ - fORMRelated::associateRecords()
+ - fORMRelated::buildRecords()
+ - fORMRelated::countRecords()
+ - fORMRelated::createRecord()
+ - fORMRelated::determineRequestFilter()
+ - fORMRelated::flagForAssociation()
+ - fORMRelated::getOrderBys()
+ - fORMRelated::getPrimaryKeys()
+ - fORMRelated::getRelatedRecordName()
+ - fORMRelated::linkRecords()
+ - fORMRelated::overrideRelatedRecordName()
+ - fORMRelated::populateRecords()
+ - fORMRelated::reflect()
+ - fORMRelated::setCount()
+ - fORMRelated::setPrimaryKeys()
+ - fORMRelated::setRecordSet()
+ - fORMRelated::store()
+ - fORMRelated::validate()
+
+ - fORMValidation::reorderMessages()
+ - fORMValidation::validateRelated()
+
+== [https://github.com/flourishlib/flourish-classes/commit/daf1327e Revision 593] ==
+
+Renamed `fORMRelated::setRecords()` to fORMRelated::setRecordSet() and
+`fORMRelated::tallyRecords()` to fORMRelated::setCount() 

@@ -1,0 +1,41 @@
+= How Do I…? =
+
+This page is meant to be sort of a compass to new users of Flourish to help them
+figure out where to look for solutions to their problems.
+
+|| '''Task at Hand''' || '''Where to Look''' ||
+|| Handle exceptions and errors gracefully || fCore ||
+|| Ensure content is properly encoded (HTML entities) || fHTML ||
+|| Handle UTF-8 content || fUTF8 ||
+|| Perform simple form validation (contact forms, etc) || fValidation ||
+|| Simple (non-ORM) interaction with a database || fDatabase, fResult, fUnbufferedResult ||
+|| Retrieve the structure of the database I am connected to || fSchema ||
+|| Interact with the database simply by using [/docs/ObjectRelationalMapping object-relational mapping] (ORM) || fActiveRecord, fRecordSet ||
+|| Get and sanitize information from the user’s request, including `GET`, `POST`, `PUT` and `DELETE` data || fRequest ||
+|| Pass transient messages around without polluting URLs || fMessaging ||
+|| Store and retrieve session information || fSession ||
+|| Handle user permissions and access control|| fAuthorization ||
+|| Ensure that data is stored securely (passwords, confidential information, etc) || fCryptography ||
+|| Handle dates and times, including timezones || fDate, fTime, fTimestamp ||
+|| Manipulate images || fImage ||
+|| Manipulate and query files and directories || fFile, fDirectory ||
+|| Handle file uploads || fUpload ||
+|| Use templating to reduce code duplication and keep logic and presentation separate || fTemplating ||
+|| Conditionally build English language constructs and convert between syntax notations || fGrammar ||
+|| Handle translation or modification of messages || fText ||
+|| Send emails and validate email addresses || fEmail ||
+|| Encode and decode JSON data || fJSON ||
+|| Deal with precise numbers and calculations || fNumber ||
+|| Represent, manipulate and translate monetary values || fMoney ||
+|| Handle sticky search values and sortable columns for list pages || fCRUD ||
+|| Get and set cookies, including HTTPOnly cookies and default values || fCookie ||
+|| Encode content for XML files || fXML ||
+
+== Topic Pages ==
+
+The following pages include some more in-depth information about topics,
+including links to the relevant Flourish classes.
+
+ - [/docs/ObjectRelationalMapping ORM (Object-Relational Mapping)]
+ - [/docs/Security PHP/web security]
+ - [/docs/UTF-8 UTF-8 in PHP]

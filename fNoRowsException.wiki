@@ -1,0 +1,38 @@
+= fNoRowsException =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fNoRowsException Class Documentation]'''
+ - [/api/fNoRowsException API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fNoRowsException.php Source Code]
+
+== Exception Classes <<toc skip>> ==
+ - fException
+  - fExpectedException
+   - fAuthorizationException
+   - fEmptySetException
+   - fNoRemainingException
+   - '''fNoRowsException'''
+   - fNotFoundException
+   - fValidationException
+  - fUnexpectedException
+   - fConnectivityException
+   - fEnvironmentException
+   - fProgrammerException
+   - fSQLException
+
+== Database Classes <<toc skip>> ==
+ - fDatabase
+ - '''fNoRowsException'''
+ - fResult
+ - fSQLException
+ - fSQLTranslation
+ - fSQLSchemaTranslation
+ - fSchema
+ - fStatement
+ - fUnbufferedResult
+)))
+
+fNoRowsException a sub-class of fExpectedException that indicates a SQL query did not return any rows.
+
+''This space intentionally left blank''

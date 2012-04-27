@@ -1,0 +1,75 @@
+= fORMDate =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fORMDate Class Documentation]'''
+ - [/api/fORMDate API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fORMDate.php Source Code]
+
+<<toc bare>>
+
+== ORM Classes <<toc skip>> ==
+ - fActiveRecord
+ - fRecordSet
+
+ - fORM
+ - fORMColumn
+ - fORMDatabase
+ - '''fORMDate'''
+ - fORMFile
+ - fORMJSON
+ - fORMMoney
+ - fORMOrdering
+ - fORMRelated
+ - fORMSchema
+ - fORMValidation
+)))
+
+The fORMDate class is an ORM plugin to provide additional functionality for date and time columns.
+
+== Date Created Columns ==
+
+The static method ::configureDateCreatedColumn() sets an active record class to automatically set a `date`, `time` or `timestamp` column to the date/time when the record is first saved in the database.
+
+{{{
+#!php
+class User extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMDate::configureDateCreatedColumn($this, 'date_created');
+    }
+}
+}}}
+
+== Date Updated Columns ==
+
+The static method ::configureDateUpdatedColumn() sets an active record class to automatically set a `date`, `time` or `timestamp` column to the current date/time each time the record is saved in the database.
+
+{{{
+#!php
+class User extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMDate::configureDateUpdatedColumn($this, 'last_edited');
+    }
+}
+}}}
+
+== Timezone Columns ==
+
+Since not all supported databases support timezone information in timestamp columns, the fORMDate class allows associating a timestamp column with another column to store the timezone name. The static method ::configureTimezoneColumn() accepts three parameters, the `$class`, the `$timestamp_column` and the `$timezone_column`.
+
+{{{
+#!php
+class NewsArticle extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMDate::configureTimezoneColumn($this, 'date_posted', 'timezone_posted');
+    }
+}
+}}}
+
+The timezone column will be used to store the timezone stored in any fTimestamp objects that are set to the timestamp column. If a new timestamp is set, it will be combined with the existing timezone into a new fTimestamp object. The object will be stored in the timestamp column. If a new timezone is set, it will be combined with the existing timestamp and the new fTimestamp object will be stored in the timestamp column.

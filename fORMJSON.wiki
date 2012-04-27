@@ -1,0 +1,59 @@
+= fORMJSON =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fORMJSON Class Documentation]'''
+ - [/api/fORMJSON API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fORMJSON.php Source Code]
+
+<<toc bare>>
+
+== ORM Classes <<toc skip>> ==
+ - fActiveRecord
+ - fRecordSet
+
+ - fORM
+ - fORMColumn
+ - fORMDatabase
+ - fORMDate
+ - fORMFile
+ - '''fORMJSON'''
+ - fORMMoney
+ - fORMOrdering
+ - fORMRelated
+ - fORMSchema
+ - fORMValidation
+)))
+
+The fORMJSON class is an ORM plugin to provide JSON encoding functionality to fActiveRecord and fRecordSet objects.
+
+== Enabling ==
+
+To add the JSON encoding functionality for whole records and record sets, simply call the static method ::extend().
+
+{{{
+#!php
+fORMJSON::extend();
+}}}
+
+== Usage ==
+
+The fORMJSON class adds a `toJSON()` method to both fActiveRecord and fRecordSet. Calling `toJSON()` on a record will create a single JSON object with each column being the property name and the value being the value. Calling `toJSON()` on a record set will create an array of the record JSON objects.
+
+{{{
+#!php
+$user = new User(3);
+echo $user->toJSON();
+
+$users = fRecordSet::build('User');
+echo $users->toJSON();
+}}}
+
+When outputting JSON to a browser, it is best practice to include the appropriate `Content-Type` header by calling fJSON::sendHeader().
+
+{{{
+#!php
+fJSON::sendHeader();
+$user = new User(3);
+echo $user->toJSON();
+}}}

@@ -1,0 +1,27 @@
+= fNoRemainingException =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fNoRemainingException Class Documentation]'''
+ - [/api/fNoRemainingException API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fNoRemainingException.php Source Code]
+
+== Exception Classes <<toc skip>> ==
+ - fException
+  - fExpectedException
+   - fAuthorizationException
+   - fEmptySetException
+   - '''fNoRemainingException'''
+   - fNoRowsException
+   - fNotFoundException
+   - fValidationException
+  - fUnexpectedException
+   - fConnectivityException
+   - fEnvironmentException
+   - fProgrammerException
+   - fSQLException
+)))
+
+fNoRemainingException is a sub-class of fExpectedException that indicates an iterator has reached the end, yet another element has been requested.
+
+''This space intentionally left blank''

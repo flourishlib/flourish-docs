@@ -1,0 +1,247 @@
+= fGrammar =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fGrammar Class Documentation]'''
+ - [/api/fGrammar API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fGrammar.php Source Code]
+
+<<toc bare>>
+)))
+
+The fGrammar class was built to handle various grammar tasks. English is the default language, however there is functionality to allow for some localization.
+
+== Quantities and Lists ==
+
+Due to the way the English language works, most messages and output that references quantities will need to change when there is a single item in question, or a quantity other than one. For instance, you may have a message say:
+
+{{{
+There are currently 15 users.
+}}}
+
+Which is great as long as your quantity is zero or greater than one. If there is only a single user, the message should change to:
+
+{{{
+There is currently one user.
+}}}
+
+Certainly some conditional code could be written to handle the situation, but why introduce a big `if` statement (or worse, an unreadable tertiary statement) in the middle of display code? The fGrammar class provides a convenient method to handle such situations, ::inflectOnQuantity(). 
+
+`inflectOnQuantity()` has three required parameters and one optional one we will talk about in a minute. The first parameter is the quantity being measured. This can be an integer, or an array of items. If an array is passed, the size of the array will be used for the quantity. The second parameter is the string to be selected if quantity is one, the third parameter is the string to be selected if the quantity is not one. The third parameter can include `%d` to be replaced with the actual quantity.
+
+{{{
+#!php
+echo 'There ' . fGrammar::inflectOnQuantity(1, 'is one user', 'are %d users') . ".\n";
+echo 'There ' . fGrammar::inflectOnQuantity(5, 'is one user', 'are %d users') . ".";
+}}}
+
+The output from the code above would be:
+
+{{{
+#!html
+There is one user.
+There are 5 users.
+}}}
+
+The optional fourth parameter is a flag to indicate if you want single digit quantities to be replaced by the word for that quantity:
+
+{{{
+#!php
+echo 'There ' . fGrammar::inflectOnQuantity(5, 'is one user', 'are %d users', TRUE) . ".";
+}}}
+
+Would result in:
+
+{{{
+#!html
+There are five users.
+}}}
+
+Another common situation is to have a variable number of terms to display, however it is desirable to produce a well-formed sentence. The ::joinArray() method will take an array of strings and will return the string in a well-formed manner. Here are some examples:
+
+{{{
+#!php
+echo fGrammar::joinArray(array()) . "\n";
+echo fGrammar::joinArray(array('one')) . "\n";
+echo fGrammar::joinArray(array('one', 'two')) . "\n";
+echo fGrammar::joinArray(array('one', 'two', 'three')) . "\n";
+echo fGrammar::joinArray(array('one', 'two', 'three', 'four'));
+}}}
+
+Here would be the HTML output:
+
+{{{
+#!html
+one
+one and two
+one, two, and three
+one, two, three, and four
+}}}
+
+== Plurals and Singulars ==
+
+Although it is unlikely that this functionality will be necessary for the majority of web sites and applications, it is good to talk a little about plurals and singulars. Most of the ORM code in Flourish uses the ::pluralize() and ::singularize() methods to handle detecting what a developer is trying to do.
+
+Here are some examples of how `pluralize()` and `singularize()` can be used:
+
+{{{
+#!php
+// Simple plural and singular forms
+echo fGrammar::pluralize('user') . "\n";
+echo fGrammar::singularize('users') . "\n";
+
+// Most irregular forms are automatically handed
+echo fGrammar::pluralize('person') . "\n";
+echo fGrammar::singularize('people');
+}}}
+
+The output would be:
+
+{{{
+users
+user
+people
+person
+}}}
+
+Unfortunately the English language has some rather complex rules about pluralization with quite a number of exceptions. To compound the matter further, singularization rules are almost non-existent in a formalized nature, and mostly have to be reverse engineered from the pluralization rules. Finally, many website and applications use acronyms heavily, which often times do not follow the same rules as words with similar structures.
+
+Because of these issues, a day will come when fGrammar will not get a pluralization or singularization of a noun correct. As a fall-back, the static method ::addSingularPluralRule() has been included. Simply pass the singular form of a noun as the first parameter and the plural form as the second parameter. All subsequent requests to `singularize()` and `pluralize()` will check this rule before the default rules. 
+
+Here is a rather contrived example of when to use `addSingularPluralRule()`:
+
+{{{
+#!php
+// These will produce incorrect results
+echo fGrammar::pluralize('phalanx') . "\n";
+echo fGrammar::singularize('phalanxes') . "\n";
+
+// Add a custom rule for phalanx
+fGrammar::addSingularPluralRule('phalanx', 'phalanxes');
+
+// Now the singularization and pluralization work properly
+echo fGrammar::pluralize('phalanx') . "\n";
+echo fGrammar::singularize('phalanxes') . "\n";
+}}}
+
+The output of the PHP above would be:
+
+{{{
+phalanxs
+phalanxe
+phalanxes
+phalanx
+}}}
+
+== Notation Conversion ==
+
+Notation conversion is also used heavily by the ORM code in Flourish to translate between the various coding standards that exist.
+
+=== underscore_notation ===
+
+Underscore notation is characterized by all lower-case letters with underscores separating words, like `underscore_notation`.
+
+The method ::underscorize() will convert camel case notation or space separated words to underscore notation.
+
+{{{
+#!php
+echo fGrammar::underscorize('FirstName') . "\n";
+echo fGrammar::underscorize('Last Name') . "\n";
+echo fGrammar::underscorize('middleInitial');
+}}}
+
+would produce the following output:
+
+{{{
+first_name
+last_name
+middle_initial
+}}}
+
+=== CamelCase ===
+
+Camel case notation uses upper and lower-case letters, with words being separated by a capital letter, like `CamelCase`. Lower camel case is identical to camel case, except the first letter is always lower-case, like `lowerCamelCase`.
+
+The method ::camelize() will convert underscore notation or space separated words to camelCase. The first parameter, `$string` is the string to be converted and the second parameter `$upper` indicates if the output should be UpperCamelCase instead of lowerCamelCase.
+
+{{{
+#!php
+echo fGrammar::camelize('first_name', FALSE) . "\n";
+echo fGrammar::camelize('Last name', FALSE) . "\n";
+echo fGrammar::camelize('MIDDLE INITIAL', TRUE);
+}}}
+
+would produce the following output:
+
+{{{
+firstName
+lastName
+MiddleInitial
+}}}
+
+=== Human Friendly Strings ===
+
+In addition to converting between these two formats, it is sometimes required to convert from underscore or camel case notation to a human friendly form. ::humanize() will take any underscore notation or camelCase string and produce output containing spaces and the first letter of each word being capitalized. For specific words know to be all capitals, it will change those words to all capitals. 
+
+{{{
+#!php
+echo fGrammar::humanize('first_name') . "\n";
+echo fGrammar::humanize('LastName') . "\n";
+echo fGrammar::humanize('middleInitial') . "\n";
+echo fGrammar::humanize('PdfUpload');
+}}}
+
+would produce the following output:
+
+{{{
+First Name
+Last Name
+Middle Initial
+PDF Upload
+}}}
+
+=== Fixing Notation Conversion Issues ===
+
+Occasionally conversion from camelCase to underscore_notation doesn’t work properly due to the splitting dynamics. In `underscorize()`, any number or capital letter following a lower-case letter will cause an `_` to be inserted. Thus, if a number exists in the middle of an acronym, the conversion will not occur correctly.
+
+To fix such situation, pass the `$camel_case` version of the string and the `$underscore_notation` version of the string to ::addCamelUnderscoreRule():
+
+{{{
+#!php
+// In this situation the underscores are put in the wrong place
+echo fGrammar::underscorize('w3cCompliant') . "\n";
+
+fGrammar::addCamelUnderscoreRule('W3cCompliant', 'w3c_compliant');
+
+// In this situation the underscores are put in the right place
+echo fGrammar::underscorize('w3cCompliant');
+}}}
+
+The above PHP would output:
+
+{{{
+w_3c_compliant
+w3c_compliant
+}}}
+
+In addition, calling `humanize()` can sometimes create results that are not desired. The method uses a simple system of splitting words and capitalizing the first letter. In some situations more than one letter need to be capitalized. The method ::addHumanizeRule() allows fixing incorrect results.
+
+{{{
+#!php
+echo fGrammar::humanize('w3c_compliant') . "\n";
+
+fGrammar::addHumanizeRule('w3c_compliant', 'W3C Compliant');
+
+echo fGrammar::humanize('w3c_compliant');
+}}}
+
+would output the following:
+
+{{{
+W3c Compliant
+W3C Compliant
+}}}
+
+== Localization ==
+
+Localization of the method ::joinArray() can be accomplished by using ::registerJoinArrayCallback(). This method accepts a single callback and all calls made to `joinArray()` are then sent to the registered callback. Obviously the method parameters and return value of the callback should match the real method.

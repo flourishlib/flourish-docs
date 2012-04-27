@@ -1,0 +1,20 @@
+= Reference Objects =
+
+A reference object refers to a class that is implemented in such a way that all
+instances with the same value share properties. Thus changes to one instance of
+an object representing a user should also show up in another object representing
+the same user. Reference objects are mutable, in that their state can be changed
+without creating a new object.
+
+Flourish includes a few different classes that are reference objects:
+
+ - fActiveRecord
+ - fDirectory
+ - fFile
+ - fImage
+
+Here is another page with some info about reference objects:
+
+ - http://c2.com/cgi/wiki?ReferenceObject
+
+The opposite of a reference object is a [/docs/ValueObjects value object].

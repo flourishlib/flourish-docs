@@ -1,0 +1,296 @@
+= fMoney =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fMoney Class Documentation]'''
+ - [/api/fMoney API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fMoney.php Source Code]
+
+<<toc bare>>
+
+== Value Objects <<toc skip>> ==
+ - fDate
+ - '''fMoney'''
+ - fNumber
+ - fTime
+ - fTimestamp
+)))
+
+The fMoney class is a [/docs/ValueObjects value object] for representing a monetary value. There is support for precise calculation, multiple currencies and formatting.
+
+== Currencies ==
+
+=== Exchange Rates ===
+
+By default the fMoney class comes with a single defined currency USD (United States Dollar). fMoney is built in such a way that multiple currencies can be used and converted between, however there is no built-in functionality to fetch exchange rate information. A few sources of free exchange rate information include:
+
+ - [http://foxrate.org FoxRate.org]
+ - [http://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml European Central Bank]
+ - [http://www.federalreserve.gov/releases/H10/update/h10daily.txt Federal Reserve Bank]
+ - [http://www.imf.org/external/np/fin/data/rms_rep.aspx?tsvflag=Y International Monetary Fund]
+
+The rest of the documentation will assume that if multiple currencies are being used that the work has been done to fetch the appropriate exchange rate information in a regular fashion.
+
+=== Defining a Currency ===
+
+Whenever a system must use a currency other than USD, the new currency must be defined by calling ::defineCurrency(). This method takes a total of five parameters that define all of the relevant information about a currency. The parameters are `$iso_code`, `$name`, `$symbol`, `$precision` and `$value`.
+
+Here is an example of defining the currency Pound Sterling:
+
+{{{
+#!php
+fMoney::defineCurrency(
+    'GBP',            // The three digit ISO code
+    'Pound Sterling', // The name of the currency
+    '£',              // The currency symbol
+    '2',              // The precision after the decimal point
+    '1.91865000'      // The current exchange rate with USD
+);
+}}}
+
+The `$value` of a currency should be defined relative to USD, that is USD has a value of `1.00000000`.
+
+Once a currency has been defined, information about it can be retrieved by using the method ::getCurrencyInfo(). There is one required parameter, `$iso_code`, which indicates what currency should be returned. A second optional parameter, `$element`, allows selecting a single piece of information including:
+
+ - `'name'`
+ - `'symbol'`
+ - `'precision'`
+ - `'value'`
+
+It is also possible to get a list of all currencies by calling ::getCurrencies().
+
+=== Default Currency ===
+
+While not required, setting a default currency is often useful, especially if only a single currency is supported. By setting the default currency, it is no longer necessary to specify the currency code when creating new fMoney objects.
+
+The method ::setDefaultCurrency() accepts a single parameter, the `$iso_code` for the desired default currency. Below is an example of setting the default to United States Dollar:
+
+{{{
+#!php
+fMoney::setDefaultCurrency('USD');
+}}}
+
+The default currency can be retrieved by calling ::getDefaultCurrency().
+
+== Instantiation ==
+
+Create an fMoney object requires either one or two parameters depending on whether or not a [#DefaultCurrency default currency] has been set. If a default '''has not''' been set, or a currency other than the default is desired, an `$amount` and a `$currency` must be specified:
+
+{{{
+#!php
+$price = new fMoney('12.25', 'USD');
+}}}
+
+''When setting the amount of an fMoney object, a float value should never be used due to the inherit loss of precision when storing floating point values. Instead, always use an integer, or a floating point value in a string.''
+
+If a default currency '''has''' been set and the default currency is desired, only a single parameter, `$amount` is required:
+
+{{{
+#!php
+fMoney::setDefaultCurrency('USD');
+
+$twelve_dollars = new fMoney('12.00');
+$five_dollars   = new fMoney('5.00');
+}}}
+
+Note that by default the currency symbol and all commas (,) will be removed from any monetary value before parsing it as a number. For details about how to customize this behaviour, please see the [#Localization localization section].
+
+== Accessors ==
+
+There are two accessors for the fMoney class, ::getAmount() and ::getCurrency() which return the amount of the value and the currency respectively.
+
+{{{
+#!php
+echo $five_dollars->getAmount() . "\n";
+echo $five_dollars->getCurrency();
+}}}
+
+will output the following:
+
+{{{
+5.00
+USD
+}}}
+
+== Comparison ==
+
+Comparison of fMoney objects is accomplished by the method ::eq(), ::gt(), ::gte(), ::lt() and ::lte(). Each method will convert any non USD values to USD before comparison to ensure that comparisons are done correctly. Below is a table of the comparison methods:
+
+|| '''Method''' || '''Comparison''' ||
+|| ::eq()       || If the two values are equal ||
+|| ::gt()       || If the object being called is greater than the value or object passed ||
+|| ::gte()      || If the object being called is greater than or equal to the value or object passed ||
+|| ::lt()       || If the object being called is less than the value or object passed ||
+|| ::lte()      || If the object being called is less than or equal to the value being passed ||
+
+It is possible to pass values other than an fMoney object for comparison. These values will be converted to an fMoney object using the default currency if defined. If no default currency is defined, an exception will be thrown.
+
+Here are a few examples:
+
+{{{
+#!php
+if (!$twelve_dollars->eq($five_dollars)) {
+    echo 'Twelve is not equal to five';
+}
+
+// Passing the string '5.00' only works because a default currency has been defined
+if ($five_dollars->eq('5.00')) {
+    echo 'Yes, five dollars is equal to five dollars';
+}
+
+if ($five_dollars->lte($twelve_dollars)) {
+   echo 'Five dollars is less than or equal to twelve';
+}
+}}}
+
+== Modification ==
+
+fMoney objects can be added, subtracted, multiplied and allocated (non-lossy division). All math operations are performed using an extra digit of precision and then the results are rounded using the [http://en.wikipedia.org/wiki/Rounding#Common_method common method]. All math operations also take into account different currencies, with the result being in the currency of the object being called.
+
+''Please be sure to avoid floating point numbers in PHP when working with monetary values. Their inherent lack of precision make them a poor choice for precise calculations. Instead, use strings containing floating decimal values.''
+
+=== Addition ===
+
+Addition is accomplished using the method ::add(). A single parameter, `$addend`, is required. The addend may be an fMoney object, or a string or integer if a default currency is defined. 
+
+{{{
+#!php
+$seventeen_dollars  = $five_dollars->add($twelve_dollars);
+$six_dollars        = $five_dollars->add('1.00');
+}}}
+
+=== Subtraction ===
+
+Subtraction is accomplished by the method ::sub(). A single parameter, `$subtrahend`, is required. The subtrahend may be an fMoney object, or a string or integer if a default currency is defined.
+
+{{{
+#!php
+$seven_dollars = $twelve_dollars->sub($five_dollars);
+$four_dollars  = $five_dollars->sub('1.00');
+}}}
+
+=== Multiplication ===
+
+To multiply a monetary value, simply pass a string, integer, or fNumber multiplier to ::mul().
+
+{{{
+#!php
+$fourty_eight_dollars    = $twelve_dollars->mul(4);
+$five_dollars_five_cents = $five_dollars->mul('1.1');
+
+$number = new fNumber('+5.5');
+$twenty_seven_dollars_fifty_cents = $five_dollars->mul($number);
+}}}
+
+=== Allocation (Division) ===
+
+Instead of providing a division method, which can easily lead to missing pennies, the fMoney class provides the method ::allocate(). This method splits up a monetary value into chunks that total the original value.
+
+`allocate()` accepts two or more parameters, each being a string or fNumber fraction that represents the portion of the total each result should hold. The result is an array of fMoney objects with as many elements as parameters specified.
+
+{{{
+#!php
+list($four_dollars, $one_dollar) = $five_dollars->allocate('0.8', '0.2');
+}}}
+
+The resulting monetary values will always add up to '''exactly''' the original value. This prevents money from being lost in calculations.
+
+{{{
+#!php
+// All three thirds will be equal to four dollars
+list($first_third, $second_third, $fourth_third) = $twelve_dollars->allocate('0.333', '0.333', '0.334');
+}}}
+
+== Conversion ==
+
+If you have defined at least one currency other than USD (such as we did with GBP in the [#Currencies Currencies section]) you can convert monetary values between currencies on the fly. The method ::convert() requires a single parameter, the ISO code of the currency to convert to.
+
+{{{
+#!php
+$usd_price = new fMoney('5.00');
+$gbp_price = $usd_price->convert('GBP');
+$usd_price = $gbp_price->convert('USD');
+}}}
+
+== Formatting ==
+
+Normally when displaying a monetary value it is desired to display the currency symbol and the value in a standard format with separators at the thousands, millions, etc. The method ::format() will perform such formatting.
+
+{{{
+#!php
+echo $five_dollars->format() . "\n";
+
+$one_thousand_two_hundred_dollars = new fMoney('1200.00');
+echo $one_thousand_two_hundred_dollars->format() . "\n";
+
+$five_pounds = new fMoney('5.00', 'GBP');
+echo $five_pounds->format();
+}}}
+
+will output the following:
+
+{{{
+$5.00
+$1,200.00
+£5.00
+}}}
+
+If the parameter `$remove_zero_fraction` is set to `TRUE` and the value has a fraction that is just zeros, the resulting output will not contain a decimal point or a fraction.
+
+{{{
+#!php
+// This will print: $5
+echo $five_dollars->format(TRUE);
+
+$two_fifty_three = new fMoney('2.53');
+// This will print: $2.53
+echo $two_fifty_three->format(TRUE);
+}}}
+
+The method ::__toString() will return the value without the currency symbol or the thousands separators.
+
+{{{
+#!php
+echo $five_dollars->__toString() . "\n";
+echo $one_thousand_two_hundred_dollars->__toString() . "\n";
+echo $five_pounds->__toString();
+}}}
+
+will output the following:
+
+{{{
+5.00
+1200.00
+5.00
+}}}
+
+== Localization ==
+
+When formatting monetary values in different locales, it will often be the case that the thousands separator and decimal point are different than the one in the United States. The methods ::registerFormatCallback() and ::registerUnformatCallback() allow for both creating a different formatting and also removing such formatting when creating a new fMoney object.
+
+{{{
+#!php
+// Function to format monetary values for Italian
+function italian_money_format(fNumber $value, $currency, $remove_zero_fraction=FALSE)
+{
+    $info = fMoney::getCurrencyInfo($currency);
+    if ($remove_zero_fraction && $value->eq($value->trunc())) {
+        $info['precision'] = 0;
+    }
+    return $info['symbol'] . number_format($value->__toString(), $info['precision'], ',', '.');
+}
+
+// Function to change a monetary value to a plain number
+function italian_money_unformat($value, $currency)
+{
+    $symbol = fMoney::getCurrencyInfo($currency, 'symbol');
+    return str_replace(
+        array('.', ',', $symbol),
+        array('', '.', ''),
+        $value
+    );
+}
+
+fMoney::registerFormatCallback('italian_money_format');
+fMoney::registerUnformatCallback('italian_money_unformat');
+}}}

@@ -1,0 +1,239 @@
+= fAuthorization = 
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fAuthorization Class Documentation]'''
+ - [/api/fAuthorization API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fAuthorization.php Source Code]
+
+<<toc bare>>
+)))
+
+The fAuthorization class is a static class provides functionality to restrict access to pages based on either simple a authorization level or more complex access control lists (ACLs).
+
+== Setup ==
+
+Since the class is static, no instantiation is required, however to use the features some setup will need to be performed. The only setup common to using either authorization levels or ACLs is to set up a login page. For maintainability, I recommend you perform your setup in a common configuration like described on the [/docs/GettingStarted#CreateaConfigurationScript Getting Started] page:
+
+{{{
+#!php
+// Set up a login page in your local.config.php
+fAuthorization::setLoginPage('/login/');
+}}}   
+
+The login page URL should be an absolute URL, relative to the domain name.
+
+If need be, the login page URL can be retrieved with the static method ::getLoginPage().
+
+{{{
+fURL::redirect(fAuthorization::getLoginPage());
+}}}
+
+== Authorization Levels ==
+
+The simplest way to control access to pages is to use authorization levels. Each user is assigned a single authorization level and can view any page that requires that level or a level below. 
+
+After you have [#Setup setup your login page], you are going to need to define the different authorization levels. Just like with the login page, you will probably want to place these in a common configuration file. Here is a simple example:
+
+{{{
+#!php
+fAuthorization::setAuthLevels(
+    array(
+        'admin' => 100,
+        'user'  => 50,
+        'guest' => 25
+    )
+);
+}}}
+
+You’ll notice that each authorization level is assigned a number. If a user has a number that is the same or above the required level, they can view a page. If not, they will be redirected to the login page.
+
+The ::setUserAuthLevel() method provides the functionality to assign an authorization level to a user when they log in:
+
+{{{
+#!php
+// This would be executed after the username and password were verified
+fAuthorization::setUserAuthLevel('admin');
+}}}
+
+To actually require an authorization level you will need to call ::requireAuthLevel() at the top of your page:
+
+{{{
+#!php
+fAuthorization::requireAuthLevel('user');
+}}}
+
+If you wish to use a user’s authorization level to control other aspects of your site, you can use the ::checkAuthLevel() method:
+
+{{{
+#!php
+if (fAuthorization::checkAuthLevel('admin')) {
+    // Execute admin specific code
+}
+}}}
+
+Last, but not least, if you need to get the user’s authorization level, that can be accomplished by calling ::getUserAuthLevel():
+
+{{{
+#!php
+$auth_level = fAuthorization::getUserAuthLevel();
+}}}
+
+== Access Control Lists ==
+
+Access control lists (ACLs) allow for more fine-grained permissions than authorization levels. With ACLs you associate resource names with specific permissions. For a user to be able to access a page they need to have the required permission for the resource specified. 
+
+ACLs do not require any setup beyond assigning the user’s ACLs when they log in. Also note that the string `'*'` acts as a wildcard when doing resource and permission comparisons.
+
+{{{
+#!php
+// This would be executed after the username and password were verified
+fAuthorization::setUserACLs(
+    array(
+        'posts'  => array('*'),
+        'users'  => array('add', 'edit', 'delete'),
+        'groups' => array('add'),
+        '*'      => array('list')
+    )
+);
+}}}
+
+The above user ACLs would imply the user has permissions to: do anything with posts; add, edit and delete users; add groups and list anything.
+
+To require a user have a specific ACL to view a page, use the method ::requireACL() at the top of a page:
+
+{{{
+#!php
+fAuthorization::requireACL('users', 'list');
+}}}
+
+The above code would require a user to have the `list` permission for the `users` resource in order to view the page.
+
+In addition to control page views, ACLs can be useful for controlling access on a smaller level. If you wish to perform a conditional branch based on a user’s ACLs you can use the ::checkACL() method:
+
+{{{
+#!php
+if (fAuthorization::checkACL('users', 'edit')) {
+    // Code to be executed for users who can edit users
+}
+}}}
+
+If you need to get a list of all ACLs assigned to the current user (in the same array format they are set), you can use the ::getUserACLs() method:
+
+{{{
+#!php
+$user_acls = fAuthorization::getUserACLs();
+}}}
+
+== Logging In ==
+
+Once you have decided if you wish to go with authorization levels or ACLs you can move on to actually logging the user in.
+
+Sometimes when a user visits the login page, they will have entered the URL manually, or will have followed a link. In this sort of situation you will need a default page to redirect them to. The rest of the time users will usually get directed to the login page because they tried to access a restricted page. You can get this information with the ::getRequestedURL() method. 
+
+::getRequestedURL() requires a single parameter, `$clear`, which controls if the requested URL is erased when returned, or if it is to be left for later access. A second, optional, parameter is the default URL to use if the user was not redirected to the login page.
+
+Here is an example of logging a user in and redirecting them to the requested page (or the home page if no page was requested):
+
+{{{
+#!php
+if ('login' == $action && fRequest::isPost()) {
+    if ($email == 'john@example.com' && sha1($password) == '5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8') {
+        fAuthorization::setUserAuthLevel('admin');
+        fURL::redirect(fAuthorization::getRequestedURL(TRUE, '/'));
+    }
+}
+}}}
+
+Please note that the code above is simplified to demonstration, please check out the fCryptography Class for information on hashing passwords.
+
+If for some reason you need to manually set the requested URL, that can be accomplished with the ::setRequestedURL() method.
+
+In addition, it is usually necessary to remember some sort of information about the user that is logging in so you can retrieve their information on other pages. The ::setUserToken() and ::getUserToken() methods allow storing some sort of user identifier and getting it back later. Here is the above example with the user token code added:
+
+{{{
+#!php
+if ('login' == $action && fRequest::isPost()) {
+    if ($email == 'john@example.com' && sha1($password) == '5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8') {
+        fAuthorization::setUserAuthLevel('admin');
+        fAuthorization::setUserToken('john@example.com');
+        fURL::redirect(fAuthorization::getRequestedURL(TRUE, '/'));
+    }
+}
+}}}
+
+== Checking Status ==
+
+If you are using either authorization levels or access control lists, there are two simple methods that can be used to tell if a user is logged in. To require a user is logged in to view a page you will want to use the ::requireLoggedIn(), whereas if you want to create conditions based on whether or not the user is logged in you can use the ::checkLoggedIn() method:
+
+{{{
+#!php
+// Require a user is logged in
+fAuthorization::requireLoggedIn();
+
+// Branch based on the user’s login status
+if (fAuthorization::checkLoggedIn()) {
+    // Code to execute if the user is logged in
+}
+}}} 
+
+== Remote IP Checking ==
+
+Sometimes it may be a requirement to only execute code if the remote connection is coming from a specific IP address or range. The method ::checkIP() provides this functionality. A single parameter `$ip_ranges` is required, which should like the IP address, [http://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing CIDR range] or IP/subnet-mask combination to check for. It is also possible to pass an array of any valid IP/range descriptors.
+
+{{{
+#!php
+// Check for the IP 192.168.1.1
+if (fAuthorization::checkIP('192.168.1.1')) {
+    // ...
+}
+
+// Check for the IPs 192.168.1.1-255
+if (fAuthorization::checkIP('192.168.1.0/24')) {
+    // ...
+}
+
+// Check for the IPs 192.168.1.1-255
+if (fAuthorization::checkIP('192.168.1.0/255.255.255.0')) {
+    // ...
+}
+
+// Check for the IPs 192.168.1.1-255 or 192.168.2.1
+if (fAuthorization::checkIP(array('192.168.1.0/24', '192.168.2.1'))) {
+    // ...
+}
+}}}
+
+It is also possible to create named IPs/ranges using the method ::addNamedIPRange(). Simply define the `$name` and `$ip_ranges` and then you can use that name with `checkIP()`:
+
+{{{
+#!php
+// Create a named IP/range
+fAuthorization::addNamedIPRange('office', '192.168.1.0/24');
+
+// Check the named IP/range
+if (fAuthorization::checkIP('office')) {
+    // ...
+}
+}}}
+
+== Logging Out ==
+
+When a user logs out, it is important that their authorization level or ACLs are erased. This is quite simple to do using the ::destroyUserInfo() method:
+
+{{{
+#!php
+fAuthorization::destroyUserInfo();
+}}}
+
+== Preventing Privilege Escalation (Security) ==
+
+One of the simplest ways for an attacker to gain unauthorized privileges is via session fixation. An attack would be executed by sending a link with a known session ID to a user and then waiting for them to log in. Once the user has logged in, the attacker can send the same session ID and receive the privileges of the user. Below is an example:
+
+{{{
+http://example.com/login.php?PHPSESSID=abcdef1234567890
+}}}
+
+''By default fSession prevents such an attack by [/docs/fSession#PreventingSessionFixationSecurity requiring that session IDs be passed in cookies], however it is theoretically possible runtime configuration of the session.use_only_cookies INI setting could be disabled.''
+
+To prevent attacks based on knowledge of the user’s session ID, fAuthorization automatically regenerates the session ID via [http://php.net/session_regenerate_id `session_regenerate_id()`] whenever ::setUserACLs(), ::setUserAuthLevel() or ::setUserToken() is called. The attacker won’t know the newly regenerated ID, and won’t be able to access the user’s account.

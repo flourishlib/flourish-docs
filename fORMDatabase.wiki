@@ -1,0 +1,84 @@
+= fORMDatabase =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fORMDatabase Class Documentation]'''
+ - [/api/fORMDatabase API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fORMDatabase.php Source Code]
+
+<<toc bare>>
+
+== ORM Classes <<toc skip>> ==
+ - fActiveRecord
+ - fRecordSet
+
+ - fORM
+ - fORMColumn
+ - '''fORMDatabase'''
+ - fORMDate
+ - fORMFile
+ - fORMJSON
+ - fORMMoney
+ - fORMOrdering
+ - fORMRelated
+ - fORMSchema
+ - fORMValidation
+)))
+
+The fORMDatabase class provides database-related functionality to the Flourish ORM. End-developers will use the class to attach fDatabase objects for the rest of ORM.
+
+== fDatabase Registry ==
+
+Since an ORM by definition maps objects to a database, it is obvious that an instance of the fDatabase class will be needed for all database operations. To make an instance of fDatabase available to all of the ORM classes, pass it to the static method ::attach().
+
+{{{
+#!php
+fORMDatabase::attach(new fDatabase('postgresql', 'database', 'username', 'password'));
+}}}
+
+When writing code for the ORM that requires use of the database class, the static method ::retrieve() will return the instance set with `attach()`.
+
+{{{
+#!php
+$result = fORMDatabase::retrieve()->translatedQuery("SELECT * FROM users");
+}}}
+
+== Multiple Database Support ==
+
+Multiple databases are support by the Flourish ORM, both in master-slave and vertical partitioning setups.
+
+=== Vertical Partitioning ===
+
+Vertical partitioning is when different tables are split up over multiple databases or servers. For instance, perhaps all users and permissions are stored on one database server and all orders and products are stored on another.
+
+In this type of a setup, it is possible to attach more than one databases for the ORM by passing a second parameter, `$name`, to the static method ::attach().
+
+{{{
+#!php
+// Attach the users db as the default
+fORMDatabase::attach($users_db);
+// Attach the ecommerce db with the name "ecommerce_db"
+fORMDatabase::attach($ecommerce_db, 'ecommerce_db');
+}}}
+
+Now individual classes can be mapped to the database by calling fORM::mapClassToDatabase().
+
+{{{
+#!php
+fORM::mapClassToDatabase('User', 'ecommerce_db');
+}}}
+
+=== Master-Slave Setups ===
+
+When a database cluster is set up to use a master-slave setup, one database will be designated the master and one or more as slaves. Flourish allows for such a setup with ::attach() by specifying the third parameter, `$role`. The `$role` parameter defaults to `both`, which means the server will be used for reading and writing. To attach the master server, set the `$role` to `write`. For the slave, set the `$role` to `read`.
+
+{{{
+#!php
+// Attach the master for writing and a slave for reading
+fORMDatabase::attach($master_db, 'default', 'write');
+fORMDatabase::attach($random_slave_db, 'default', 'read');
+}}}
+
+It is also possible to combine vertical partitioning with master-slave setups by specifying a `$name` for the database other than `default`.
+
+As implied by the slave database variable `$random_slave_db` in the code example, ::attach() '''will not''' accept multiple databases for the `read` role and random pick one. For setups where there is more than one slave, code must be manually written to select a slave and provide it to the `attach()` method.

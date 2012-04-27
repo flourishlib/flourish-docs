@@ -1,0 +1,61 @@
+= ORM (Object-Relational Mapping) =
+<<toc>>
+
+When dealing with database-driven web applications (and sites) often times
+interacting with the DB is one of the most repetitive and messy tasks. Having to
+manually build `SELECT`, `INSERT`, `UPDATE`, and `DELETE` queries for a
+multitude of tables is time consuming and mostly deterministic.
+
+[http://en.wikipedia.org/wiki/Object-relational_mapping Object-Relational
+Mapping] (ORM) helps to reduce the tedium, creates cleaner code, make
+relationships easy to access. Rows from a relational database management system
+(RDBMS) such as MySQL, PostgreSQL, SQL Server, Oracle, DB2, etc. are translated
+into objects in the programming language.
+
+== ORM Classes in Flourish ==
+
+The ORM features of Flourish are primarily accomplished by the following two
+classes:
+
+ - '''fActiveRecord''' - Handles creation and manipulation of single database
+ records
+ - '''fRecordSet''' - Handles finding and manipulation sets of records
+
+There are a number of other classes in Flourish that provide functionality to
+fActiveRecord and fRecordSet:
+
+ - '''fORM''' - Allow for overriding defaults and extending classes
+ - '''fORMColumn''' - Provides miscellaneous functionality for columns
+ - '''fORMDatabase''' - Holds the fDatabase class to use for all ORM tasks
+ - '''fORMDate''' - Provides configurable date functionality
+ - '''fORMFile''' - Provides configurable file upload functionality
+ - '''fORMJSON''' - Extends fActiveRecord and fRecordSet with methods to
+   convert to JSON
+ - '''fORMMoney''' - Provides configurable money functionality
+ - '''fORMOrdering''' - Provides configuration record ordering functionality
+ - '''fORMRelated''' - Powers the built in support for retrieving related
+   records from fActiveRecord
+ - '''fORMSchema''' - Holds the fSchema class to use for all ORM tasks
+ - '''fORMValidation''' - Powers the built in validation routines and allows
+   for configuration validation functionality
+
+== Why Another ORM? ==
+
+Many of the big PHP frameworks ([http://cakephp.org CakePHP],
+[http://codeigniter.com Code Igniter], 
+[http://www.symfony-project.org Symfony],
+[http://framework.zend.com Zend Framework]) perform ORM to some degree. There
+are also a few PHP ORM suites ([http://propel.phpdb.org Propel] and
+[http://www.phpdoctrine.org Doctrine]) focused on strictly ORM tasks.
+
+You may be wondering, why build another PHP "framework" with ORM functionality?
+Flourish is intended to be more of a library of PHP code as opposed to a
+framework (defined as strict set of conventions, rules and methods that must be
+followed to build a site). In addition Flourish sits somewhere between the
+frameworks and ORM suites by providing some of the more advanced ORM features
+that most of the frameworks are missing, while being lighter weight and easier
+to use than the ORM suites.
+
+You may also be interested in checking out some of the
+[/docs/MotivationsForFlourish motivations for creating Flourish] instead of
+using an existing solution.

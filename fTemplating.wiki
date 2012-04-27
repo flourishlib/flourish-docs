@@ -1,0 +1,460 @@
+= fTemplating =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fTemplating Class Documentation]'''
+ - [/api/fTemplating API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fTemplating.php Source Code]
+
+<<toc bare>>
+)))
+
+The fTemplating class allows for simple PHP templating with abstraction of HTML into a separate scope. This is a contrast to system like Smarty where a complete language has been developed, and must be learned, to use templating.
+
+== Initialization ==
+
+When creating an instance of the fTemplating class, a single optional parameter `$root` can be passed. This controls the directory that is used as the basis for relative paths. If no root is passed, the `$_SERVER['DOCUMENT_ROOT']` is used as a default.
+
+{{{
+#!php
+$template = new fTemplating('/var/www/inc/templates/');
+}}}
+
+== Setting, Getting and Deleting Elements ==
+
+The fTemplating class is built around the concept of elements. Elements can be any data type, and may represent anything from a chunk of data, to an object, or a file path.
+
+The first operation to be performed is setting an element via the ::set() method. The first parameter, `$element`, is an identifier for the element you are setting. The second parameter is the `$value`.
+
+Here are some example of setting various elements:
+
+{{{
+#!php
+// These value would usually be set in the initialization script for a site
+$template->set('header', 'header.php');
+$template->set('footer', 'footer.php');
+
+$template->set('db',  $database);
+}}}
+
+Multiple elements can be set in one method call by passing an associative array to ::set().
+
+{{{
+#!php
+$template->set(array(
+    'header' => 'header.php',
+    'footer' => 'footer.php'
+));
+}}}
+
+Elements can be retrieved by calling the ::get() method. This method required the first parameter, `$element`, which is what you want to retrieve. You can also optionally pass a second parameter `$default_value` to specify what should be returned in the element has not yet been set. If no `$default_value` is specified and the element has not been set, `NULL` will be returned.
+
+{{{
+#!php
+// This will be the name or NULL
+$name = $template->get('name');
+
+// This will be the name or 'No name provided'
+$name = $template->get('name', 'No name provided');
+}}}
+
+Multiple elements can be retrieved in one method call by passing an array of element names to ::get(). If default values are required, an associative array can be passed with the element name being the key and the default value being the value.
+
+{{{
+#!php
+// Get an array with two values - the element names will be the keys and the
+// values will be the values, NULL will be returned if an element is not set
+$values = $template->get(array('first_name', 'last_name'));
+
+// This returns the same elements, but with the explicit default values N/A
+$values = $template->get(array(
+    'first_name' => 'N/A',
+    'last_name'  => 'N/A'
+));
+}}}
+
+Elements can be removed by passing the `$element` name to ::delete(). The value of the element being deleted will be returned.
+
+{{{
+#!php
+$value = $template->delete('name');
+}}}
+
+A `$default_value` can be passed as the second parameter to ::delete(), and it will be returned if the element specified was not set.
+
+{{{
+#!php
+$value = $template->delete('name', 'None specified');
+}}}
+
+Multiple elements can be deleted at a time by passing an array of element names to ::delete(). Default values can be provided by passing an associative array of element names as keys and default values as values.
+
+{{{
+#!php
+// Delete the first_name and last_name elements
+$values = $template->delete(array('first_name', 'last_name'));
+
+// Delete the first_name and last_name elements, providing defaults
+$values = $template->delete(array(
+    'first_name' => 'No first name provided',
+    'last_name'  => 'No last name provided'
+));
+}}}
+
+== Adding, Removing and Filtering Elements ==
+
+In addition to `set()`, there is a method called ::add() that will allow appending a value to an element that is an array. It will also initialize an element to an array if the element does not already exist.
+
+{{{
+#!php
+$template->add('js',  '/sup/js/main.js');
+
+$template->add('css', array('path' => '/sup/css/print.css', 'media' => 'print'));
+$template->add('css', '/sup/css/base.css');
+}}}
+
+A value can be added at the beginning by passing `TRUE` as the third parameter.
+
+{{{
+#!php
+$template->add('js', '/sup/js/jquery-min.js', TRUE);
+}}}
+
+The ::remove() method can used to remove a value from an array element. The removed value will be returned.
+
+{{{
+#!php
+$template->add('numbers', 1);
+$template->add('numbers', 2);
+$two = $template->remove('numbers');
+}}}
+
+A value may be removed from the beginning of an array element by passing `TRUE` as a second parameter to ::remove().
+
+{{{
+#!php
+$one = $template->remove('numbers');
+}}}
+
+Values may be removed from an array element by calling ::filter() with the `$element` as the first parameter, and the `$value` to remove as the second.
+
+{{{
+#!php
+$template->filter('numbers', 1);
+}}}
+
+The ::filter() method does a normal equality comparison, so filtering `0` will also removed `FALSE` and other empty values. All matching values will be removed from the array, not just the first one.
+
+== Encoding and Preparing Elements ==
+
+While simply retrieving elements is useful in certain situations, much of the time there will be a need to process text content for output in the HTML. The ::encode() and ::prepare() methods function the same was as `get()` except that they run the returned value through fHTML::encode() and fHTML::prepare(), respectively.
+
+{{{
+#!php
+// Encode turns <, >, & and " into HTML entities to prevent XSS
+echo $template->encode('name');
+
+// ::prepare() should only be used with trusted content to make
+// sure special characters outside of HTML tags are encoded
+echo $template->prepare('html_bio');
+}}}
+
+== Array Dereferencing ==
+
+When an element is an array, it is possible to use array dereference syntax in the element name to access a specific array key. This syntax works with ::set(), ::get(), ::delete(), ::add(), ::remove(), ::filter(), ::encode() and ::prepare().
+
+{{{
+#!php
+$template->set(
+    'user',
+    array(
+        'first_name' => 'John',
+        'last_name'  => 'Smith'
+    )
+);
+// This will echo John
+echo $template->get('user[first_name]');
+}}}
+
+Array dereferencing can be any number of layers deep.
+
+{{{
+#!php
+echo $template->get('user[groups][0][name]');
+}}}
+
+== Placing Elements ==
+
+Probably the most useful aspect of the fTemplating class is the ::place() method. This method takes a single parameter, `$element`, in which you specify what element you want to place in the page.
+
+`place()` works differently depending of the type of path is contained in the element. If the element contains a path is to a .php (.inc or .php5) file, the file will be included inside the scope of the fTemplating class (i.e. `$this` will return to the instance of the class). If a .css, .js or .rss (.xml) path is placed, the proper XHTML tags will be echoed.
+
+In order to handle the `title` attribute for RSS feeds and the `media` attribute for CSS files it is possible to set the value of an element to be an associative array containing a key `path` and a key corresponding to the appropriate attributes.
+
+Here are some examples of using `place()` for different types of files:
+
+{{{
+#!php
+$template->set('title', 'Flourish');
+$template->add('rss', array('path' => '/sup/rss/blog.rss', 'title' => 'Blog Posts'));
+$template->place('header');
+?>
+<h1>Flourish</h1>
+...
+<?php
+$template->place('footer');
+}}}
+
+Placing the header would include the file `header.php` from the root we defined earlier of `/var/www/inc/templates/`. Placing the footer would do that same thing for `footer.php`.
+
+Here is an example `header.php`:
+
+{{{
+#!php
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+    <head>  
+        <title><?php echo $this->prepare('title') ?></title>
+        <?php echo $this->place('css') ?>
+        <?php echo $this->place('js') ?>
+        <?php echo $this->place('rss') ?>
+    </head>
+    <body>
+}}}
+
+The HTML output from the above script would be:
+
+{{{
+#!html
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+    <head>  
+        <title>Flourish</title>
+        <link rel="stylesheet" type="text/css" href="/sup/css/base.css" media="all" />
+        <link rel="stylesheet" type="text/css" href="/sup/css/print.css" media="print" />
+        <script type="text/javascript" src="/sup/js/main.js"></script>
+        <link rel="alternate" type="application/rss+xml" href="/sup/rss/blog.rss" title="Blog Posts" />
+    </head>
+    <body>
+        <h1>Flourish</h1>
+        ...
+    </body>
+</html>
+}}}
+
+If paths are contained in element that do not end in one of the extensions listed below, you can force all paths in an element to be displayed as a certain type of file by passing the type of file as the second parameter to place.
+
+Here are the valid extensions:
+
+ - '''PHP:''' `.php`, `.php5`, `.inc`
+ - '''JS:''' `.js`
+ - '''CSS:''' `.css`
+ - '''RSS:''' `.rss`, `.xml`
+
+Here is how you could force all paths in an element to be displayed as a certain type regaredless of the path extensions:
+
+{{{
+#!php
+// JS files
+$this->place('element1', 'js');
+
+// CSS files
+$this->place('element2', 'css');
+
+// RSS files
+$this->place('element3', 'rss');
+
+// PHP files
+$this->place('element4', 'php');
+}}}
+
+== Injecting Files ==
+
+The method ::inject() works identically to ::place(), except that is accepts a file name or path instead of an element name. This allows placing a file without having to pass it to ::set() first.
+
+{{{
+#!php
+// Include a PHP file in the template root
+$template->inject('sidebar.php');
+
+// Add a JS file
+$template->inject('/path/to/example.js');
+}}}
+
+The second parameter also functions identically to ::place(), allowing the developer to specify the type of file being injected if it can't be auto-detected.
+
+{{{
+#!php
+// Specifying the file type
+$template->inject('/path/to/rss', 'rss');
+}}}
+
+== Minification ==
+
+fTemplating includes functionality that will minify javascript and CSS, combine multiple files into one, and add a query string to allow for far-futures expire headers. All of these features provide increased performance for HTTP clients.
+
+Minification reduces the number of bytes sent to a user by removing whitespace and other unnecessary syntactic sugar. Combining multiple files reduces the number of HTTP requests made for each script execution. Adding a query string of the cache-file creation date allows use of far-futures expires headers without worrying about out-dated browser caches, which further reduces the number of HTTP requests.
+
+''In this section of documentation, a **cache file** refers to a file containing minified code of one or more original code files.''
+
+=== Enabling Minification ===
+
+JS and CSS minification is enabled by calling ::enableMinification() with a `$mode`, `$cache_directory` and optional `$path_prefix`. This should be called before calling ::place() on any elements since it works through the `place()` method.
+
+{{{
+#!php
+$template->enableMinification('development', $_SERVER['DOCUMENT_ROOT'] . '/sup/minification_cache/');
+}}}
+
+The `$mode` can be either `'development'` or `'production'`. In `'development'` mode, all files are checked for modifications on each script execution. If a file has been modified since the cache was last created, the cache is regenerated. In `'production'` mode, cache files are only regenerated if they are missing.
+
+The `$cache_directory` should be a web-accessible directory for fTemplating to write the cache files to. It needs to be web-accessible since `<script>` and `<link>` tags will be referencing cache files stored inside of it.
+
+The `$path_prefix` is optional, and defaults to `$_SERVER['DOCUMENT_ROOT']`. The `$path_prefix` is appended to all JS and CSS paths in order to load them from the filesystem. For example a CSS file `/css/main.css` would be prefixed with `$_SERVER['DOCUMENT_ROOT']`, resulting in fTemplating looking for the file in `/document/root/css/main.css`.
+
+Since the minified files are stored on the filesystem, fTemplating must know how to translate the filesystem path into a URL. This translation is done by using fFilesystem::translateToWebPath(). If fTemplating is generating incorrect URLs for the minified files, please use fFilesystem::addWebPathTranslation() to indicate what translation should be done. [/docs/fFilesystem#Translation fFilesystem: Translation] has an example showing how the method is used.
+
+=== How Minification Affects HTML Output ===
+
+Once minification is enabled, all calls to ::place() that end up placing one or more CSS or JS files will automatically be minified.
+
+{{{
+#!php
+$template->add('css', '/css/structure.css');
+$template->add('css', '/css/typography.css');
+$template->place('css');
+}}}
+
+Would normally result in the following HTML being written to the output:
+
+{{{
+#!html
+<link rel="stylesheet" type="text/css" href="/css/structure.css" />
+<link rel="stylesheet" type="text/css" href="/css/typography.css" />
+}}}
+
+With minification enabled, it would be written as:
+
+{{{
+#!html
+<link rel="stylesheet" type="text/css" href="/cache/ae9210f4cbd017f4cbes.css?v=10298382912" />
+}}}
+
+=== Minification Algorithm ===
+
+fTemplating uses Douglas Crockford’s [http://www.crockford.com/javascript/jsmin.html JSMin algorithm], but has its own implementation that is optimized for PHP.
+
+For CSS, there is not a definitive algorithm like JSMin. Currently fTemplating performs the following steps to minify CSS:
+
+ - Runs of two of more whitespace characters are reduced to a single space
+ - Whitespace around `;`, `{`, `}`, `,`, `>` and `+` is removed
+ - Whitespace around `:` inside of rule blocks is removed
+ - `;}` is reduced to `}`
+ - Units of measure for zero values are discarded
+ - Unnecessary leading and trailing zeroes are discarded
+ - Measurements repeated four times are reduced to a single measurement
+ - 6-digit hex color codes are reduced to three if possible
+
+CSS minification does not touch `@import` statements or `url()` literals. Depending on the location of the `$cache_directory` relative to the normal CSS directory, some `@import` statements may break. However, with ::enableMinification(), `@import` statements should not generally be necessary. Similarly, `url()` literals may break if the `$cache_directory` is on a different directory level than the original CSS directory. This can be remedied by placing them on the same level, or using website-relative URLs. 
+
+== PHP Short Tags ==
+
+PHP short tags, such as `<?` and `<?=` often make for easy-to-read and easy-to-write templates in raw PHP. Unfortunately, short tags can be disabled by an ini setting, and can’t be relied upon when developing PHP for different environments.
+
+The method ::enablePHPShortTags() allows any PHP file directly included via ::place() or ::inject() to use PHP short tags even if they are turned off. This is accomplished by transforming short tags into long tags and saving the transformed PHP into a cache directory. The method accepts two parameters, `$mode` and `$cache_directory`.
+
+{{{
+#!php
+$template->enablePHPShortTags('development', '/path/to/php/cache');
+}}}
+
+The `$mode` can be either `'development'` or `'production'`. In `'development'` mode, all files are checked for modifications on each script execution. If a file has been modified since the cache was last created, the cache is regenerated. In `'production'` mode, cache files are only regenerated if they are missing.
+
+The `$cache_directory` is where the transformed PHP files are saved. This directory should not be web-accessible, but must be writable by the web server. ''fTemplating will properly preserve the value of `__FILE__` and `__DIR__` constants that are contained within templates that are transformed.''
+
+== Buffered Output ==
+
+In certain circumstances it is useful to buffer the output of the page to allow for elements to be changed after content has already been output. The ::buffer() method allows such buffering to be enabled.
+
+When buffering is enabled, all calls to `place()` actually insert a text token into the output. When the fTemplating class destructor is called (explicitly, or at the end of the page execution) the text tokens are all replaced by the output of the `place()` call. The `place()` method is actually executed in the destructor, so it will have the state of all elements at the end of the page, thus allowing elements to be modified after they have been seemingly already output.
+
+There are two caveats to using the fTemplating output buffering.
+
+ 1. If any of your code relies on sequential execution of code in a `place()` call and then in other non-templating code, it will be executed in the wrong order due to the fact that the `place()` call is not done until the end of the page. If this is the case, you should probably not use buffering, or consider a way to refactor your code so that such sequential code execution is not required.
+ 2. All objects that are used inside of PHP that is placed by the fTemplating object need to be constructed before the fTemplating object is constructed. This is because destructors are executed in the reverse order of constructors, which means the objects being used by fTemplating will be destructed before fTemplating itself. Since fTemplating's destructor is what causes PHP code to be “placed,” the object being used may no longer be in a usable state. This happens most often with fDatabase.
+
+
+Here is an example of using buffered output:
+
+{{{
+#!php
+// Create the template and turn on buffering
+$temp = new fTemplating();
+$temp->buffer();
+
+// Set up out elements
+$temp->set('header', 'header.php');
+$temp->set('title',  'This is the old title');
+
+// Output the header
+$temp->place('header');
+
+// Change the title after the fact
+$temp->set('title', 'This is the new title');
+}}}
+
+Let’s assume that `header.php` looks like this:
+
+{{{
+#!php
+echo $this->get('title');
+}}}
+
+The output from above would be:
+
+{{{
+#!html
+This is the new title
+}}}
+
+since the `place()` call is not executed until the `$temp` destructor is called at the end of the code (implicitly) and the title was changed before the end of the code.
+
+This buffering technique can greatly reduce the complexity of the code that needs to be executed before the first output can be sent to the user.
+
+== Named Instances ==
+
+It is possible to attach and retrieve fTemplating objects in any scope using the static methods ::attach() and ::retrieve(). `attach()` accepts an fTemplating instance and an optional `$name` for it. If no `$name` is provided, it will be set to `default`.
+
+{{{
+#!php
+fTemplating::attach(new fTemplating('/path/to/root'));
+}}}
+
+The method ::retrieve() accepts the `$name` of a previously creating instance and returns it. If no `$name` is passed, the `default` template is returned.
+
+{{{
+#!php
+$tmpl = fTemplating::retrieve();
+}}}
+
+== Sub-Templating ==
+
+It is possible to nest fTemplating objects for more complex situations. The concept is to have a child fTemplating object that will be placed by a parent. Such a child fTemplating object will automatically call ::place() on the `__main__` element when it itself is placed.
+
+The `__main__` element will normally be set by passing a PHP file path to the second parameter of the constructor. Like calls to ::set(), any file path that is not absolute and does not start with `./` will be relative to the template root.
+
+{{{
+#!php
+$user_info = new fTemplating('/templating/root/', 'sub_templates/user_info.php');
+}}}
+
+The fTemplating object may then be set to another fTemplating object and placed.
+
+{{{
+#!php
+$template->set('user_info', $user_info);
+// At this point sub_templates/user_info.php is placed
+$template->place('user_info');
+}}}
+
+All sub-templates will inherit all minification and PHP short tag settings from their parent if not explicitly set.

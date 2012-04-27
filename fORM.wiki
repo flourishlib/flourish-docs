@@ -1,0 +1,428 @@
+= fORM =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fORM Class Documentation]'''
+ - [/api/fORM API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fORM.php Source Code]
+
+<<toc bare>>
+
+== ORM Classes <<toc skip>> ==
+ - fActiveRecord
+ - fRecordSet
+
+ - '''fORM'''
+ - fORMColumn
+ - fORMDatabase
+ - fORMDate
+ - fORMFile
+ - fORMJSON
+ - fORMMoney
+ - fORMOrdering
+ - fORMRelated
+ - fORMSchema
+ - fORMValidation
+)))
+
+The fORM class is a static class that implements core ORM functionality for much of the Flourish ORM. It provides means to configure and extend fActiveRecord classes.
+
+== Mapping Classes to Tables ==
+
+By default, when mapping fActiveRecord classes to database tables, an `UpperCamelCase` singular class name will be mapped the the `underscore_notation` plural database table of the same noun. For example, the `User` class is mapped to the `users` table. The static method ::mapClassToTable() allows overriding this default by passing the `$class` and `$table` in.
+
+The following example would set the `User` class to map to the `user` table instead of `users`. ''This code should be executed during site-wide configuration and should '''not''' be placed inside of the `configure()` method for a class that extends fActiveRecord.''
+
+{{{
+#!php
+// Class to table mapping should occur before any classes are used
+// such as when the database is attached via fORMDatabase::attach()
+fORMDatabase::attach($db);
+fORM::mapClassToTable('User', 'user');
+}}}
+
+When writing custom ORM code, the class that is associated with a table can be determined by calling the static method ::classize() with the parameter `$table`.
+
+{{{
+#!php
+$class = fORM::classize($table);
+return new $class();
+}}}
+
+To translate from the class to the database table simply pass the class to the static method ::tablize(). The class can be either a class name or an instance of the class.
+
+{{{
+#!php
+$object = new User();
+$table  = fORM::tablize($object);
+}}}
+
+== Tables in Other Schemas ==
+
+When a class models a table in a non-default schema (`public` for PostgreSQL, `dbo` for MSSQL and the username for Oracle and DB2), the static method ::mapClassToTable() should be called with first parameter, the `$class` to map and the second parameter, `$table`, should be in the format `schema.table`.
+
+''This code should be executed during site-wide configuration and should '''not''' be placed inside of the `configure()` method for a class that extends fActiveRecord.''
+
+{{{
+#!php
+// This maps the User class to the users table in the authorization schema
+fORM::mapClassToTable('User', 'authorization.users');
+}}}
+
+== Multiple Databases ==
+
+When multiple databases are configured via fORMDatabase, classes can model tables on the non-`default` database by calling the method ::mapClassToDatabase(). The first parameter is the `$class` to map, and the second is the `$name` of the database set in fORMDatabase::attach(). 
+
+{{{
+#!php
+// Attach a second database as "commerce_db" and have the User class model the users table in it
+fORMDatabase::attach($db, 'commerce_db');
+fORM::mapClassToDatabase('User', 'commerce_db');
+}}}
+
+''Like ::mapClassToTable(), this code should be executed during site-wide configuration and should '''not''' be placed inside of the `configure()` method for a class that extends fActiveRecord. This method is not required for classes modeling tables in the default database — if no `$name` was provided to fORMDatabase::attach(), then the database is the default.''
+
+== Column and Record Names ==
+
+Whenever class and column names are used in messaging, such as in fValidationException, the class or column name is run through fGrammar::humanize() to create a human-friendly version. Obviously in some situations this technique will not get capitalization or punctuation correct. The static methods ::overrideRecordName() and ::overrideColumnName() allow setting custom names for classes and columns respectively. ''It is also possible to set a class name in the context of being a related class—see the [/docs/fORMRelated#OverridingRelatedRecordNames fORMRelated class documentation] for more details.''
+
+The example below shows changing the column `email` to display as `E-Mail` instead of `Email` and the `FaqEntry` class to display as `FAQ Entry` instead of `Faq Entry`.
+
+{{{
+#!php
+class User extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORM::overrideColumnName($this, 'email', 'E-Mail');
+    }
+}
+
+class FaqEntry extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORM::overrideRecordName($this, 'FAQ Entry');
+    }
+}
+}}}
+
+''If you are having issues with your column names not being properly converted from CamelCase (for methods) to underscore_notation (for your database and HTML), please see the [/docs/fGrammar#FixingNotationConversionIssues Fixing Notation Conversion Issues] section on the fGrammar page.''
+
+== Schema Caching ==
+
+Since the schema information is dynamically pulled out of the database, this can add at least a few database calls to each request that is processed. If the database schema is not changing on a regular basis and  better performance is required, the schema can be cached by calling the static method ::enableSchemaCaching().
+
+`enableSchemaCaching()` accepts a single parameter, an fCache object to cache the schema information to. This enables caching on the fDatabase, fSQLTranslation and fSchema objects that are used for the ORM.
+
+An additional feature is that the cached schema information will be cleared if an fUnexpectedException is thrown. This would normally happen if a programmer tried to perform an action that was invalid based on the cached schema.
+
+{{{
+#!php
+fORM::enableSchemaCaching(new fCache('file', '/file/path/to/cache/file'));
+}}}
+
+== Extending the ORM ==
+
+The Flourish ORM is built in such a way that it can be easily extended without having to actually extends individual classes. Both the fActiveRecord and fRecordSet classes allow registering callbacks to handle methods that don’t exist (and thus fall through to the `__call` magic method) while in addition, the fActiveRecord class includes a number of predefined "hooks" that allow for injecting functionality using callbacks. There is further functionality that allows defining callbacks to handle the tasks of translating objects to scalar values, scalar values to objects and method reflection.
+
+A large part of the ORM classes built into Flourish use these features to implement their functionality:
+
+ - fORMColumn
+ - fORMDate
+ - fORMFile
+ - fORMJSON
+ - fORMMoney
+ - fORMOrdering
+
+The two static methods ::registerActiveRecordMethod() and ::registerRecordSetMethod() allow for setting callbacks to handle method calls for methods that don’t exist in the fActiveRecord and fRecordSet classes respectively. The static method ::registerHookCallback() allows setting a hook to be executed at one of the pre-defined hooks in fActiveRecord.
+
+Once a callback has been registered to handle a method call or hook, it will be automatically called at the appropriate time and will be passed the pre-defined parameters listed below. The actual work of calling the callback and passing the parameters is handled by the fActiveRecord and fRecordSet classes so all that the end-developer needs to worry about is the callback parameter signature and the functionality in the callback.
+
+=== Adding Methods to fActiveRecord ===
+
+''If you wish to add a method to a single fActiveRecord class, simply create the method inside of that class. The following functionality is for the purpose of dynamically adding methods to fActiveRecord at run time. This technique is used to create ORM plugins, such as fORMFile, fORMOrdering, etc.''
+
+`registerActiveRecordMethod()` accepts the `$class` and `$method` to register for and the `$callback` to register. The `$class` can also be `'*'` to register the callback for all fActiveRecord classes. The `$callback` should be a callback for a method or function that accepts the following parameters:
+
+ - '''`$object`''': The fActiveRecord instance
+ - '''`&$values`''': The values array for the record
+ - '''`&$old_values`''': The old values array for the record
+ - '''`&$related_records`''': The related records array for the record
+ - '''`&$cache`''': The cache array for the record
+ - '''`$method_name`''': The method that was called
+ - '''`$parameters`''': The parameters passed to the method
+
+The following example registers the method `toXML()`:
+
+{{{
+#!php
+class User extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORM::registerActiveRecordMethod($this, 'toXML', 'User::convertToXML');
+    }
+
+    public function convertToXML($object, &$value, &$old_values, &$related_records, &$cache, $method_name, $parameters)
+    {
+        // …
+    }
+}
+
+$user = new User();
+echo $user->toXML();
+}}}
+
+=== Adding Methods to fRecordSet ===
+
+`registerRecordSetMethod()` accepts the `$method` to register for and the `$callback` to register. The `$callback` should be a callback for a method or function that accepts the following parameters:
+
+ - '''`$object`''': The actual record set
+ - '''`$class`''': The class of each record
+ - '''`&$records`''': The ordered array of fActiveRecord objects
+ - '''`$method_name`''': The name of the method that was called
+ - '''`$parameters`''': The parameters passed to the method
+
+The following example adds a method named `toXML()` to all fRecordSet objects:
+
+{{{
+#!php
+class ORMXML
+{
+    public function extend()
+    {
+        fORM::registerRecordSetMethod('toXML', 'ORMXML::convertToXML');
+    }
+
+    public function convertToXML($object, $class, &$records, $method_name, $parameters)
+    {
+        // …
+    }
+}
+
+ORMXML::extend();
+
+$users = fRecordSet::build('User');
+echo $users->toXML();
+}}}
+
+=== Adding Functionality to fActiveRecord ===
+
+Rather than requiring all additional functionality for fActiveRecord classes to be defined in each class or requiring that methods be overridden in order to add functionality, the static method ::registerHookCallback() allows callbacks to be registered that will be executed a predefined places. These hooks make it possible to write plugins for the ORM that can be easily reused.
+
+`registerHookCallback()` accepts three parameters, the `$class` and `$hook` to register for and the `$callback` to register. The `$class` can be either a class name or `'*'` to register for all fActiveRecord classes. The `$hook` should be one of the hooks listed below:
+
+|| '''Hook'''                      || '''Location''' ||
+|| `'post::__construct()'`         || At the very end of `__construct()` ||
+|| `'pre::delete()'`               || At the very beginning `delete()` ||
+|| `'post-begin::delete()'`        || After the database and filesystem transactions have been started ||
+|| `'pre-commit::delete()'`        || Just before the database and filesystem transactions are committed ||
+|| `'post-commit::delete()'`       || After the database and filesystem transactions have been committed ||
+|| `'post-rollback::delete()'`     || When an error occurs, right after the database and filesystem transactions are rolled back ||
+|| `'post::delete()'`              || At the very end of `delete()` ||
+|| `'post::loadFromIdentityMap()'` || Right after a record is attached to the identity map, is not triggered if loaded from a result ||
+|| `'post::loadFromResult()'`      || Right after a record is loaded from the database, is not triggered if loaded from the identity map ||
+|| `'pre::populate()'`             || At the very beginning of `populate()` ||
+|| `'post::populate()'`            || At the very end of `populate()` ||
+|| `'pre::replicate()'`            || At the very beginning of `replicate()`/`clone`, on the original record ||
+|| `'post::replicate()'`           || At the very end of `replicate()`/`clone`, on the original record ||
+|| `'cloned::replicate()'`         || At the very end of `replicate()`, on the newly cloned record ||
+|| `'pre::store()'`                || At the very beginning of `store()` ||
+|| `'post-begin::store()'`         || After the database and filesystem transactions have been started ||
+|| `'post-validate::store()'`      || After validation successfully completes ||
+|| `'pre-commit::store()'`         || Just before the database and filesystem transactions are committed ||
+|| `'post-commit::store()'`        || After the database and filesystem transactions have been committed ||
+|| `'post-rollback::store()'`      || When an error occurs, right after the database and filesystem transactions are rolled back ||
+|| `'post::store()'`               || At the end of `store()`, just before the existence is changed, thus `$record->exists()` will still return `FALSE` for a new record ||
+|| `'pre::validate()'`             || Before any of the built-in validation is done, the `$validation_messages` array will be empty ||
+|| `'post::validate()'`            || After all of the built-in validation is done, the `$validation_messages` array will contain all of the messages, however the messages ordering is done ''after'' this hook ||
+
+The `$callback` specified should have the following signature:
+
+ - '''`$object`''': The fActiveRecord instance
+ - '''`&$values`''': The values array for the record - see [#values $values] for details
+ - '''`&$old_values`''': The old values array for the record - see [#old_values $old_values] for details
+ - '''`&$related_records`''': The related records array for the record - see [#related_records $related_records] for details
+ - '''`&$cache`''': The cache array for the record - see [#cache $cache] for details
+
+The two hooks, `'pre::validate()'` and `'post::validate()'` accept one extra parameter:
+
+ - '''`&$validation_messages`''': An associative array of the error messages, with the keys being column or table names - see [#validation_messages $validation_messages] for details
+
+The three hooks, `'pre::replicate()'`, `'post::replicate()'` and `'cloned::replicate()'` accept one extra parameter:
+
+ - '''`$replication_level`''': An integer representing the level of recursion - the object being replicated will be `0`, children will be `1`, grandchildren `2` and so on
+
+==== Custom Validation Using a Hook ====
+
+Below is an example of extending a `User` class to confirm that the password confirmation is identical to the password when using populate:
+
+{{{
+#!php
+class User extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORM::registerHookCallback($this, 'post::validate()', 'User::validatePassword');
+    }
+
+    static public function validatePassword($object, &$values, &$old_values, &$related_records, &$cache, &$validation_messages)
+    {
+        // If a new password was set, it came through the request and does not match the field password confirmation, add an error message
+        if (fActiveRecord::hasOld($old_values, 'password') && fRequest::get('password') && fRequest::get('password') != fRequest::get('password_confirmation')) {
+            $validation_messages['password'] = 'Password: The value entered does not match Password Confirmation';
+        }     
+    }
+}
+}}}
+
+=== fActiveRecord Array Structures ===
+
+When writing callbacks for adding methods or functionality to fActiveRecord, most often there will be a need to work with the `$values`, `$old_values`, `$related_records` and `$cache` arrays.
+
+Each of these arrays is implemented in such a way that all instances of an fActiveRecord class that represent the same record will share the arrays. If a change is made to the values for one instance of `User` with the ID `1`, all other instance of `User` `1` will also see those changes.
+
+It is also important to note that all callbacks registered for fActiveRecord method calls and hooks should accept these arrays by reference, otherwise any changes to the arrays will be lost.
+
+==== $values ====
+
+The `$values` array is an associative array of the current values for a record. Each column in the database is a key in the array and points to the current value for that column. Below is an example of what the `$values` array would look like for a simple `User` record with a [/docs/fCryptography#PasswordHashing hashed password]:
+
+{{{
+Array
+(
+    [user_id] => 1
+    [first_name] => Will
+    [last_name] => Bond
+    [email] => will@flourishlib.com
+    [password] => fCryptography::password_hash#Gu19bpZN94#ac74c4ad9ed7103e051e583af86599b95237e9af
+)
+}}}
+
+The best practice for assigning new values to the `$values` array is to use the static method [/api/fActiveRecord?protected=true#assign `assign()`] since it will automatically move the old value into the `$old_values` array.
+
+==== $old_values ====
+
+The `$old_values` array is an associative array of every previous value contained by each of the columns in the record since it was last loaded from the database. The original value will be at key `0`, and further revisions will be appended to the array.
+
+The keys in the array are the database column names, however a column will only be present as a key if a value in the record has changed. The value associated with each key is an array of all of the old values. Below is an example of the `$old_values` array for a `User` object that has had the first name change twice and the email changed once.
+
+{{{
+Array
+(
+    [first_name] => Array
+        (
+            [0] => William
+            [1] => will
+        )
+  
+    [email] => Array
+        (
+            [0] => will@flourishlib.com
+        )
+  
+)
+}}}
+
+Records that are new and have not been stored in the database will have all values set to `NULL`, thus the `$old_values` array for a new `User` record that has had each field set once will look like the following:
+
+{{{
+Array
+(
+    [user_id] => Array
+        (
+            [0] => {null}
+        )
+  
+    [first_name] => Array
+        (
+            [0] => {null}
+        )
+  
+    [last_name] => Array
+        (
+            [0] => {null}
+        )
+  
+    [email] => Array
+        (
+            [0] => {null}
+        )
+  
+    [password] => Array
+        (
+            [0] => {null}
+        )
+  
+)
+}}}
+
+There are a few fActiveRecord static methods that make working with the `$old_values` array a little easier. [/api/fActiveRecord?protected=true#changed `changed()`] will return a boolean indicating if the value of a column has actually changed—`FALSE` will be returned if there is an old value and the old and current values match. [/api/http://flourishlib.com/api/fActiveRecord?protected=true#hasOld `hasOld()`] returns a boolean indicating if there is an old value for a column and will return `TRUE` even if the old and current values are the same. [/api/fActiveRecord?protected=true#retrieveOld `retrieveOld()`] will return either the oldest value for a column, or an array of all old values depending on what parameters are passed.
+
+==== $related_records ====
+
+The `$related_records` associative array contains a cache of all related records that have been pulled out of the database. This array helps prevent lots of duplicate database queries from being executed.
+
+The structure of the array is as follows:
+
+{{{
+Array
+(
+    [$related_table] => Array
+        (
+            [$route] => Array
+                (
+                    [record_set] => fRecordSet,
+                    [primary_keys] => array(),
+                    [associate] => boolean, 
+                    [count] => integer
+                )
+        
+        )
+  
+)
+}}}
+
+The array is only populated as the related records are requested. The `$related_table` is the database table corresponding to the related record class. The `$route` is name of the [/docs/OrmConventions#RelationshipRoutes relationship route] between the table for the current class and the `$related_table`.
+
+The `'record_set'` key (which will not be present if the record has only been counted, or if only the primary keys have been accessed) will point to an fRecordSet object. The `'primary_keys'` key will point to an array of the primary keys for the related records, but will only be present if a `link` method has been called. The `'count'` key (which will always be present) will point to an integer containing the number of related records. The `'associate'` key points to a boolean indicating if the related records should be stored when the parent records `store()` method is executed.
+
+In general, the `$related_records` array should not be manipulated directly, and may cause custom code to be more fragile in the face of future Flourish internal code updates. Instead, try to use the various static methods on the fORMRelated class. For normal end-developer use, almost all of the fORMRelated functionality is exposed through the [/docs/fActiveRecord#RelatedRecordsOperations fActiveRecord related records operations].
+
+==== $cache ====
+
+The `$cache` array is an array implemented for use by end-developers or ORM plugins. The structure is completely up to the discretion of the programmer. This array can be useful for temporarily storing data, such as an unhashed password for the purposes of mailing to user, or for caching an expensive calculation.
+
+==== $validation_messages ====
+
+The `$validation_messages` array keys are generated via the following rules. Whenever the array is modified, special care should be taken to add new entries properly. The [/docs/fActiveRecord#validate fActiveRecord::validate() documentation] has examples of each type of entry in the array.
+
+ - Errors involving a single column: the key will be the database column name
+ - Errors involving multiple columns: the key will be the database column names joined by `,`
+ - Errors involving related tables: the key will be the related table name
+ - Errors involving columns in one-to-one related tables: the key will be the related table name ollowed by `::` followed by the column name (or column names joined by `,`)
+ - Errors involving columns in one-to-many related tables: the key will be the related table name followed by `[` followed by the zero-based record number, followed by `]`. The value of this key will be an associative array containing two keys, `name` and `errors`. The `name` key will have a user-friendly name for the related record and the `errors` key will contain an array of error messages for the related record.
+
+== Dynamic fActiveRecord Classes ==
+
+While not a feature that should normally be used in a production environment, the static method ::defineActiveRecordClass() will automatically create an fActiveRecord class for a class that properly maps to a database table. By placing this method call in an `__autoload` function, it is possible to start working with the ORM without having to create a class for each database table.
+
+{{{
+#!php
+function __autoload($class)
+{
+    $file = '/path/to/class/files/' . $class . '.php';
+    
+    if (file_exists($file)) {
+        include($file);
+        return;
+    }
+
+    try {
+        fORM::defineActiveRecordClass($class);
+    } catch (fProgrammerException $e) {
+        fCore::toss('fProgrammerException', sprintf('The class %s could not be found', $class));
+    }
+}
+}}}

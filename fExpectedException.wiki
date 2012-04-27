@@ -1,0 +1,38 @@
+= fExpectedException =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fExpectedException Class Documentation]'''
+ - [/api/fExpectedException API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fExpectedException.php Source Code]
+
+<<toc bare>>
+
+== Exception Classes <<toc skip>> ==
+ - fException
+  - '''fExpectedException'''
+   - fAuthorizationException
+   - fEmptySetException
+   - fNoRemainingException
+   - fNoRowsException
+   - fNotFoundException
+   - fValidationException
+  - fUnexpectedException
+   - fConnectivityException
+   - fEnvironmentException
+   - fProgrammerException
+   - fSQLException
+)))
+
+fExpectedException is a sub-class of fException meant to provide a common parent class for all exceptions that should be expected and handled in the site/application code. There are no special features or functionality for this class.
+
+== Child Classes ==
+
+Below is a list of all child classes that extend fExpectedException. If any of these classes are tossed by a Flourish method, there will be a ''Throws:'' entry in the method’s API documentation. Note that exceptions that extend fUnexpectedException are ''not'' documented in the same way.
+
+|| '''Class'''           || '''Description''' ||
+|| fEmptySetException    || This type of exception indicates an fRecordSet is empty, and will only be thrown when requested via `tossIfEmpty()`. ||
+|| fNoRemainingException || This type of exception indicates that a element was requested even though an iterator has iterated over all existing elements. ||
+|| fNoRowsException      || This type of exception is for use when no rows are returned by a SQL query. ||
+|| fNotFoundException    || This type of exception indicates that something could not be found and should include the item type in the message. ||
+|| fValidationException  || This type of exception indicates there was an error when checking data input. The message will indicate what could not be validated. ||

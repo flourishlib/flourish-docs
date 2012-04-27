@@ -1,0 +1,49 @@
+= fORMMoney =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fORMMoney Class Documentation]'''
+ - [/api/fORMMoney API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fORMMoney.php Source Code]
+
+<<toc bare>>
+
+== ORM Classes <<toc skip>> ==
+ - fActiveRecord
+ - fRecordSet
+
+ - fORM
+ - fORMColumn
+ - fORMDatabase
+ - fORMDate
+ - fORMFile
+ - fORMJSON
+ - '''fORMMoney'''
+ - fORMOrdering
+ - fORMRelated
+ - fORMSchema
+ - fORMValidation
+)))
+
+The fORMMoney class is an ORM plugin to provide functionality to treat columns as monetary values.
+
+== Money Columns ==
+
+When dealing with monetary values, it is usually very important that the values stored and calculated are accurate. The fMoney class provides this sort of accuracy and the fORMMoney class allows a column to be configured so that values coming out of the database are automatically converted to fMoney object. The static method ::configureMoneyColumn() accepts three parameters, the `$class` being configured, the `$column` to set as a money column, and ''optionally'' a `$currency_column` to store the currency of the monetary value in.
+
+When configuring a money column ''without'' a corresponding currency column, a default currency must be set via fMoney::setDefaultCurrency(). All fMoney objects created will use this default currency. If an fMoney object is set to the value of the money column, and it contains a different currency than the default and no currency column is set, the currency will be lost when the record is saved in the database.
+
+{{{
+#!php
+class Order extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMMoney::configureMoneyColumn($this, 'total');
+    }
+}
+}}}
+
+When calling the `get` method for a money column, an fMoney object should be expected whenever a record has been freshly loaded from the database—it is possible that if a value has been set that it is not a valid money value, and thus will not be an fMoney object. The `prepare` method for a money column will call the fMoney::format() method on the fMoney object, while the `encode` method will return the output of fMoney::__toString().
+
+If a currency column is set for the money column, the currency contained in the fMoney object will be stored in that column when the record is saved to the database. If the `set` method is called on the money column with a non-fMoney object, a new fMoney object will be created with the currency currently stored in the currency column. If the `set` method is called on the currency column, a new fMoney object will be created with that currency and the current money amount. Setting an fMoney object to the money column will cause the currency column to be updated to the currency of the object.

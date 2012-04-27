@@ -1,0 +1,51 @@
+= fSQLTranslation =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fSQLTranslation Class Documentation]'''
+ - [/api/fSQLTranslation API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fSQLTranslation.php Source Code]
+
+<<toc bare>>
+
+== Database Classes <<toc skip>> ==
+ - fDatabase
+ - fNoRowsException
+ - fResult
+ - fSQLException
+ - '''fSQLTranslation'''
+ - fSQLSchemaTranslation
+ - fSchema
+ - fStatement
+ - fUnbufferedResult
+)))
+
+The fSQLTranslation class is an internal class used by fDatabase for translating [/docs/FlourishSql Flourish SQL] into the dialect of SQL supported by the current database. To take advantage of the features of this class, be sure to call [/api/fDatabase#translatedquery `translatedQuery()`] instead of [/api/fDatabase#query `query()`].
+
+For more information about `translatedQuery()` and `query()`, please see the [/docs/fDatabase#Queries Queries] section of the fDatabase page.
+
+== Debugging ==
+
+The method ::enableDebugging(), accepts a single boolean parameter to turn debugging on or off. This method is automatically passed the same value as fDatabase::enableDebugging() when that is called.
+
+When debugging is enabled, the class will print the original and translated queries, allowing developers to track down translation issues.
+
+{{{
+#!php
+$sql_translation->enableDebugging(TRUE);
+}}}
+
+== Caching ==
+
+Part of the functionality that fSQLTranslation provides is to provide a way to get national character data (NCHAR, NVARCHAR and NTEXT columns) out of Microsoft SQL Server. Most of the MSSQL extensions for PHP do not properly retrieve national character data since it is encoded in UCS-2, which contains `NULL` bytes. fSQLTranslation translates the SQL query to request data from such columns as binary data, which allows `NULL` bytes, and then changes the encoding to UTF-8 before being returned to the developer.
+
+Part of this process is to retrieve a list of all national character columns. The ::enableCaching() method accepts an instance of the fCache class, and will save the appropriate database schema information so it does not need to be fetched on each page load.
+
+{{{
+#!php
+$sql_translation->enableCaching(new fCache('file', '/path/to/cache/file'));
+}}}
+
+The method ::clearCache() will clear out the cached information, which would be useful when the database schema changes.
+
+When using the [/docs/ObjectRelationalMapping Flourish ORM], the fORM class provides some [/docs/fORM#SchemaCaching useful caching functionality] that will automatically clear the cache when database errors occur.

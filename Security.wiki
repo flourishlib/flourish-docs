@@ -1,0 +1,403 @@
+= Security =
+<<toc>>
+
+Security is an important topic when creating web sites. Quite a few techniques
+exist to compromise web servers, web browsers, or people’s information. This
+page serves as an overview of the various attacks that Flourish helps to
+prevent. While technology can help to keep sites secure, the most important part
+of the equation is that developers know what they are up against.
+
+== Cross-Site Request Forgery ==
+
+CSRF attacks consist of malicious websites taking advantage of users being
+logged in to multiple web sites in a single browser, thereby allowing them to
+direct users to perform password protected tasks in an unauthorized manner. The
+fRequest class provides functionality to [/docs/fRequest#PreventingCSRFSecurity
+prevent CSRF attacks].
+
+'''More info:'''
+ - [/docs/fRequest#PreventingCSRFSecurity fRequest: Preventing CSRF]
+ - http://en.wikipedia.org/wiki/Cross-site_request_forgery
+ - http://shiflett.org/articles/cross-site-request-forgeries
+ - http://shiflett.org/articles/foiling-cross-site-attacks
+
+== Cross-Site Scripting ==
+
+Cross-site scripting (or XSS) is an attack that injects malicious code into a
+normally "safe" page. This usually takes the form of a link containing malicious
+content which is embedded in a page or by allowing posting of permanent data
+(such as blog comments) that gets embedded in the page. To prevent this type of
+attack, all input should be filtered and all output should be escaped. The
+fRequest::get() method allows for filtering input data with typecasting, while
+fHTML::escape() ensures that all output is properly escaped for output in HTML.
+
+'''More info:'''
+ - [/docs/fRequest#InputFilteringbyTypecastingSecurity fRequest: Input Filtering
+   by Typecasting]
+ - [/docs/fHTML#EscapingContentSecurity fHTML: Escaping Content]
+ - http://en.wikipedia.org/wiki/Cross-site_scripting
+ - http://shiflett.org/articles/foiling-cross-site-attacks
+
+== Session Fixation ==
+
+Session fixation is when an attacker tricks a user into using a known session id
+to log into a website and then uses the same session id to access their account.
+The fSession class helps prevent this by setting the appropriate ini settings so
+that session ids can only be specified in cookies and not in the query string.
+The fAuthorization class takes it a step further and regenerates the session
+identifier whenever any new user information (such as ACLs or authorization
+level) is set.
+
+'''More info:'''
+ - [/docs/fAuthorization#PreventingPrivilegeEscalationSecurity fAuthorization:
+   Preventing Privilege Escalation]
+ - [/docs/fSession#PreventingSessionFixationSecurity fSession: Preventing
+   Session Fixation]
+ - http://en.wikipedia.org/wiki/Session_fixation
+ - http://shiflett.org/articles/session-fixation
+
+== Cross-Site Session Transfer ==
+
+When multiple sites on a single server share the same directory to store their
+session files, it is possible that a user could log into a legitimate account on
+one site and then copy and paste the session id into the other site’s session id
+cookie. This type of attack would allow an attacker to gain access to
+information of the second site as long as the `$_SESSION` data is structured the
+same as the first site.
+
+The easiest way to prevent such an attack is to have each site use a custom
+directory to store session files by calling the static method
+fSession::setPath().
+
+'''More info:'''
+ - [/docs/fSession#ConfigurationSecurity fSession: Configuration]
+ - [http://www.suspekt.org/wp-content/uploads/2008/09/lesserknownsecurityproblemsinphpapplications.pdf
+   Slides from Stefan Esser’s talk "Lesser Known Security Problems in PHP
+   Applications"] 
+
+== Pseudo-Random Number Generator Attacks ==
+
+The pseudo-random number generator (PRNG) built into PHP includes a fairly
+secure seeding system to make sure that the number generated are hard to guess
+or replicate. Unfortunately the functions [http://php.net/srand `srand()`] and
+[http://php.net/mt_srand `mt_srand()`] allow seeding the [http://php.net/rand
+`rand()`] and [http://php.net/mt_rand `mt_rand()`] functions, and the seeds used
+are usually very insecure and can be calculated by attackers. It is also
+possible via a number of different techniques for an attacker to manage to reset
+the seed to a known value.
+
+The fCryptography class provides functionality where the OS random number
+generator (`/dev/urandom` on BSD/Linux and the CAPICOM object on Windows) is
+used to seed the PRNG. If neither of those sources is available, a combination
+of a number of other attributes about the current server and install are used to
+create a seed value. Because of this functionality, the static method
+fCrytography::random() should always be used for random numbers and the static
+method fCryptography::randomString() should always be used for random strings.
+
+'''More info:'''
+ - [/docs/fCryptography#RandomNumbersandStrings fCryptography: Random Numbers
+   and Strings]
+ - http://www.suspekt.org/2008/08/17/mt_srand-and-not-so-random-numbers/
+
+== SQL Injection ==
+
+SQL injection is a technique where an attacker passes in a value into a site
+that includes SQL commands where the application is normally expecting a value
+to use in a query. Suppose there is a site that accepts a blog id in the query
+string of the blog page:
+
+{{{
+http://example.com/blogs.php?blog_id=25
+}}}
+
+This value would then be used in the SQL query to look up the appropriate blog:
+
+{{{
+#!php
+$sql = "SELECT * FROM blogs WHERE blog_id = '" . $_GET['blog_id'] . "'";
+}}}
+
+which would create the following SQL statement:
+
+{{{
+#!sql
+SELECT * FROM blogs WHERE blog_id = '2'
+}}}
+
+If an attacker were to use a different value for the blog id, such as below,
+they could execute arbitrary SQL statements.
+
+{{{
+http://example.com/blogs.php?blog_id=2'%3B%20DELETE%20FROM%20blogs%3B
+}}}
+
+which would end up creating the following SQL statement:
+
+{{{
+#!sql
+SELECT * FROM blogs WHERE blog_id = '2'; DELETE FROM blogs;
+}}}
+
+The way to prevent such attacks is to always escape data that is being placed
+into a SQL query. The fDatabase class is built with this in mind, providing the
+static method fDatabase::escape() which allows escaping of data based on its
+type. In addition, each of the four different query methods allow using the same
+escape syntax.
+
+'''More info:'''
+ - [/docs/fDatabase#EscapingDataSecurity fDatabase: Escaping Data]
+ - http://en.wikipedia.org/wiki/SQL_injection
+
+== Email Injection ==
+
+Email injection is an attack similar to SQL injection, except that the malicious
+content must be placed in the `$additional_headers` parameter of the
+[http://php.net/function.mail `mail()`] function. Since the `From:` header is
+added to an email using this additional headers parameter, it is possible to an
+attacker to set additional headers or even inject full messages if user
+submitted data is included in the `From:` header.
+
+Below is an example of code that would be vulnerable to an email injection
+attack:
+
+{{{
+#!php
+$headers = "From: " . $_POST['name'] . " <" . $_POST['email'] . ">";
+mail($to, $subject, $body, $headers);
+}}}
+
+If an attacker were to include line breaks in the name or email fields, they
+could add additional headers including `To:`, `Cc:`, `Bcc:`, `Subject:`, and
+even more like setting up a mime type. PHP automatically prevents line break
+characters in the `$subject` parameter of `mail()`, while the `$to` parameter
+requires a valid email address and the `$message` parameter would just display
+the headers as normal text content.
+
+Both the fValidation and fEmail classes contain features to help prevent email
+injection attacks. The fValidation class includes methods to check fields for
+being valid email addresses and to make sure they don’t include line breaks. The
+fEmail class provides full prevention against attacks by validating each email
+address and name (to, from, reply to, etc) plus the subject to ensure they don’t
+contain vulnerabilities.
+
+'''More info:'''
+ - fEmail
+ - fValidation
+ - http://en.wikipedia.org/wiki/E-mail_injection
+
+== Path Disclosure ==
+
+Error messages and unhandled exception messages often include full file or
+directory paths to documents on your server. During development it is useful to
+display this information so that debugging is easier. Once a site has moved to
+its production environment, however, these file and directory paths can be a
+security risk. While not a risk in an of themselves, the information is useful
+when combined with other attacks.
+
+Say that a site is on a shared server with a custom session path to prevent
+cross-site session transfer attacks. Obviously the directory has to be readable
+and writable by the web server, otherwise the session files would not be saved.
+If the attacker was able to find the session path via an error or exception
+message, they could then set their application to use the same session path and
+execute an attack.
+
+To prevent this information from leaking, error and exception messages should be
+routed to a log file or an email address once a site is in production. The
+static methods fCore::enableErrorHandling() and fCore::enableExceptionHandling()
+provide such functionality, plus more.
+
+'''More info:'''
+ - [/docs/fCore#ErrorExceptionHandling fCore: Error/Exception Handling]
+
+== Path Traversal ==
+
+Path traversal is an attack in which a script that uses user input to access a
+file is fed a path outside of the intended directory. Suppose the following URL
+allows downloading files from a directory:
+
+{{{
+http://example.com/download.php?file=image.gif
+}}} 
+
+And that `download.php` contained code such as:
+
+{{{
+#!php
+$path   = '/path/to/download/dir/' . $_GET['file'];
+$handle = fopen($path, 'rb');
+fpassthru($handle);
+fclose($handle);
+exit;
+}}}
+
+If a user specified the following URL, they could access the file `/etc/passwd`
+since they are using the `../` notation for the parent directory:
+
+{{{
+http://example.com/download.php?file=..%2F..%2F..%2F..%2Fetc%2Fpasswd
+}}}
+
+The best way to prevent such an attack is to not accept filenames from users,
+but instead accept an identifer which can be mapped to a filename.
+
+{{{
+#!php
+$valid_files = array(
+    '1' => 'image.gif',
+    '2' => 'image.jpg',
+    '3' => 'image.png'
+);
+
+$file = $_GET['file'];
+
+if (isset($valid_files[$file])) {
+    // Handle the error
+}
+
+$path = '/path/to/download/dir/' . $file;
+}}}
+
+Similarly, another option is to create some sort of whitelist of valid files and
+make sure the file requested is in the whitelist.
+
+If it is not possible to create a whitelist, the function
+[http://php.net/realpath `realpath()`] will return the canonical form of a path,
+resolving any `../` paths and following any symlinks. For the example above,
+`realpath()` would have returned `/etc/passwd`. Thus, checking the output of
+`realpath()` against the valid file directory can prevent unauthorized
+filesystem access:
+
+{{{
+#!php
+$dir  = '/path/to/download/dir/';
+$path = realpath($dir . $_GET['file']);
+
+if (strpos($path, $dir) !== 0 || $path == $dir) {
+    // Handle the error
+}
+}}}
+
+The fFile class can be useful in validating files since it will throw an
+fValidation exception if the file is not found and will return the output of
+`realpath()` from the method fFile::getPath().
+
+'''More info:'''
+ - fFile
+ - http://www.owasp.org/index.php/Path_Traversal
+
+== Request Value Fixation ==
+
+Request value fixation is an attack that is only effective against script that
+use the `$_REQUEST` superglobal. The `$_REQUEST` superglobal pulls in values
+from `$_GET`, `$_POST`, and `$_COOKIE`, in that order. This means that any value
+specified in a cookie with the same key as a value passed in by a query string
+will always resolve to the cookie value.
+
+This type of attack would require that a user’s cookie be compromised, but could
+cause serious issues. Because of this vulnerability, the `$_REQUEST` superglobal
+should not be used. The fRequest class provides functionality to retrieve values
+from both the `$_GET` and `$_POST` superglobals (in that order) and provides
+additional useful features.
+
+'''More info:'''
+ - [/docs/fRequest#GettingValues fRequest: Getting Values]
+ - http://kuza55.blogspot.com/2006/03/request-variable-fixation.html
+ - http://www.suspekt.org/2008/10/01/php-53-and-delayed-cross-site-request-forgerieshijacking/
+
+== Invalid Character Encoding ==
+
+Some multibyte character encodings can cause issues when escaping data,
+especially when creating SQL statements. The issues is that some character
+encodings use the `\` character as a second, third or fourth byte in a multibyte
+sequence, however that can be combined with other characters to cause escaping
+to be done incorrectly.
+
+UTF-8, the character encoding that Flourish uses for everything, does not suffer
+from this type of vulnerability. As a precaution, however, the static method
+fRequest::get() filters all incoming content through fUTF8::clean() to ensure
+that no malformed UTF-8 characters are present. In a similar sense, all data
+imported into the system should be converted to UTF-8, and cleaned to make sure
+no invalid characters exist.
+
+'''More info:'''
+ - [/docs/fRequest#SpecialDataTypeHandling fRequest: Special Data Type Handling]
+ - [/docs/fUTF8#CleaningStringsSecurity fUTF8: Cleaning Strings]
+ - http://shiflett.org/blog/2006/jan/addslashes-versus-mysql-real-escape-string
+ - http://www.suspekt.org/2008/09/18/slides-from-my-lesser-known-security-problems-in-php-applications-talk-at-zendcon/
+
+== File Uploads ==
+
+File uploads can clearly be a security vulnerability if no filtering is done of
+user input. Malicious users could upload executables containing viruses,
+trojans, or any other sort of harmful content. Because of this, it is best
+practice to limit the accepted file types to those that are suitable for the
+task at hand.
+
+The `$_FILES` superglobal that PHP provides to access file uploads includes a
+`type` key which contains the mime type of the file. This mime type, however, is
+specified by the user and should not be trusted for filtering nefarious files.
+The fUpload class, however, includes functionality that filters uploaded files
+by their mime type, with the mime type checking being done on the server side.
+
+'''More info:'''
+ - [/docs/fUpload#SettingOptionsSecurity fUpload: Setting Options]
+
+== Password Hashing ==
+
+Users' passwords should never be stored in plain text. As much as there is a
+desire to provide functionality such as "email me my password," the benefit is
+not worth the risk of an attacker obtaining a list of users and their passwords.
+Instead, all user passwords should be hashed and then functionality such as
+"reset my password" should be implemented.
+
+It is also important to understand that simply hashing a password using
+[http://php.net/md5 `md5()`] or [http://php.net/sha1 `sha1()`] is not enough to
+provide reasonable security. Before hashing the password, it should be combined
+with a salt to provide extra security and protect against certain forms of
+attack. The fCryptography class provides secure password hashing functionality
+via the static methods fCryptography::hashPassword() and
+fCryptography::checkPasswordHash().
+
+'''More info:'''
+ - [/docs/fCryptography#PasswordHashing fCryptography: Password Hashing]
+ - http://en.wikipedia.org/wiki/Key_strengthening
+ - http://en.wikipedia.org/wiki/Password_cracking
+ - http://phpsec.org/articles/2005/password-hashing.html
+ - http://www.securityfocus.com/blogs/262
+
+== Magic Quotes and Register Globals ==
+
+Magic quotes and register globals are two features built into PHP that can cause
+security issues and affect how user input is treated in PHP.
+
+Magic quotes (specifically the ini setting `magic_quotes_gpc`) tries to prevent
+SQL injection attacks by automatically escaping all `'`, `"`, `\` and `NULL`
+characters with a `\`. This affects all data in the `$_GET`, `$_POST` and
+`$_COOKIE` superglobals and is enabled by default in new PHP installations. The
+fRequest::get() and fCookie::get() static methods will automatically detect if
+`magic_quotes_gpc` is turned on and will remove the extra escape `\` characters.
+
+Register globals is a feature where all data from the `$_GET`, `$_POST` and
+`$_COOKIE` superglobals are exported into the global scope as variables. This
+can very quickly lead to injection vulnerabilities and this feature should never
+be enabled. Register globals has been disabled by default since PHP version
+4.2.0.
+
+'''More info:'''
+ - [/docs/fRequest#GettingValues fRequest: Getting Values]
+ - [/docs/fCookie#GettingValues fCookie: Getting Values]
+ - http://php.net/security.magicquotes.disabling
+ - http://en.wikipedia.org/wiki/Magic_quotes
+ - http://php.net/ini.core#ini.register-globals
+ - http://php.net/register_globals
+
+== Additional Security Resources ==
+
+The following web sites and blogs have a wealth of information about web/PHP
+security and best practices.
+
+ - http://shiflett.org/articles
+ - http://blog.php-security.org/
+ - http://www.suspekt.org/category/security/
+ - http://www.owasp.org/index.php/Category:Attack
+ - http://en.wikipedia.org/wiki/Category:Web_security_exploits

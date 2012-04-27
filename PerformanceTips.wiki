@@ -1,0 +1,39 @@
+= Performance Tips =
+<<toc>>
+
+This page is a small collection of some tips to help increase performance of you
+PHP code. Most of them require that you have enough control of the server to be
+able to change settings in Apache and load different PHP extensions.
+
+== Opcode Caching ==
+
+Under normal operation, PHP will load each source code file upon each request.
+The source code files are first compiled into PHP opcodes and then the opcodes
+are executed. A number of PHP opcode caching extensions exist that keep the
+compiled opcodes stored in memory and only regenerate the opcode if the source
+code changes.
+
+ - [http://pecl.php.net/package/APC APC]
+ - [http://eaccelerator.net eAccelerator]
+ - [http://turck-mmcache.sourceforge.net/index_old.html Turck MMCache]
+ - [http://xcache.lighttpd.net XCache]
+
+Mike Willbanks has
+[http://blog.digitalstruct.com/2007/12/24/accelerators-revisited/ a comparison
+of APC, eAccelerator and XCache] from late 2007.
+
+fLoader will utilize the most performant loading technique based on the current
+execution environment. If a opcode cache is present, all classes will be
+included. If not, autoloading will be done via
+[http://php.net/spl_autoload_register `spl_autoload_register()`].
+
+== Extensions ==
+
+A few of the Flourish classes provide pure PHP implementations of functionality
+that is also available from extensions that are not installed by default. Below
+is a list of the classes and the extension that will provide better performance.
+
+|| '''Class'''    || '''Extension'''                                         ||
+|| fJSON          || [http://php.net/json json] (included in 5.2 by default) ||
+|| fNumber/fMoney || [http://php.net/bc bcmath]                              ||
+|| fUTF8          || [http://php.net/mbstring mbstring]                      ||

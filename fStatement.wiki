@@ -1,0 +1,23 @@
+= fStatement =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fStatement Class Documentation]'''
+ - [/api/fStatement API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fStatement.php Source Code]
+
+== Database Classes <<toc skip>> ==
+ - fDatabase
+ - fNoRowsException
+ - fResult
+ - fSQLException
+ - fSQLTranslation
+ - fSQLSchemaTranslation
+ - fSchema
+ - '''fStatement'''
+ - fUnbufferedResult
+)))
+
+The fStatement class is an internal class used by fDatabase for representing a database prepared statement. There are no public methods for this class, all functionality is exposed through fDatabase. Please see fDatabase for more information about [/docs/fDatabase#PreparedStatements creating and using prepared statements].
+
+''This space intentionally left blank''

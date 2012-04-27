@@ -1,0 +1,27 @@
+= fProgrammerException =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fProgrammerException Class Documentation]'''
+ - [/api/fProgrammerException API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fProgrammerException.php Source Code]
+
+== Exception Classes <<toc skip>> ==
+ - fException
+  - fExpectedException
+   - fAuthorizationException
+   - fEmptySetException
+   - fNoRemainingException
+   - fNoRowsException
+   - fNotFoundException
+   - fValidationException
+  - fUnexpectedException
+   - fConnectivityException
+   - fEnvironmentException
+   - '''fProgrammerException'''
+   - fSQLException
+)))
+
+fProgrammerException is a sub-class of fUnexpectedException that indicates the programmer has written invalid code that will not allow for further execution. This exception is one of the most prevalent in the Flourish code base and is used to indicate improper parameter values, incorrect code sequencing and similar errors.
+
+''This space intentionally left blank''

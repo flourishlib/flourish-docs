@@ -1,0 +1,266 @@
+= Code Standards =
+<<toc>>
+
+This page covers some of the basics of the Flourish code standards.
+
+''This page is a work-in-progress and thus very incomplete.''
+
+== Files ==
+
+=== PHP Tags ===
+
+All PHP files should start with a long PHP tag `<?php`, and '''omit''' the
+closing PHP tag `?>`.
+
+{{{
+#!php
+<?php
+class Example
+{
+	private $member = NULL;
+}
+}}}
+
+Closing PHP tags are omitted because they are unnecessary and if they have any
+white-space after them, can prevent the modification of headers since output
+has already begun. In addition, files should never leave PHP and go to raw
+output, so the closing PHP tag should never be present. If output is required,
+the `echo` statement should be used instead.
+
+'''This is incorrect:'''
+
+{{{
+#!php
+<?php
+class Example
+{
+	private $member = NULL;
+}
+?>
+}}}
+
+Short tags `<?` and `<?=` should not be used since some installations of PHP do
+not support them and Flourish is aimed at high compatibility.
+
+'''This is incorrect:'''
+
+{{{
+#!php
+<?
+class Example
+{
+	private $member = NULL;
+}
+}}}
+
+=== Line Length ===
+
+In general lines should try not to exceed 80 characters in length, however this
+does happen a fair amount. Use best judgment about how the code will be most
+readable.
+
+=== Line Termination ===
+
+All files should be saved in Unix format, meaning that each line should end
+with a single line feed (also known as an LF or `\n`).
+
+== Formatting ==
+
+=== Indenting ===
+
+All code should be indented from the left margin by tab characters and a tab
+width should be set to 4 spaces. All indenting done in the middle of a line
+should be with spaces.
+
+''Please note that these code samples have all tabs replaced by 4 spaces
+because browsers default to 8 spaces per tab and the code highlighter
+automatically converts the tabs to spaces for proper spacing.''
+
+{{{
+#!php
+if ($show) {
+	$message = 'Hello';
+}
+}}}
+
+Large blocks of assignments should have the operators lined up.
+
+{{{
+#!php
+$header  = 'Header';
+$body    = 'Body';
+$body   .= ' with content';
+
+$content   = array();
+$content[] = $header;
+$content[] = $body;
+}}}
+
+All blocks of code, such as `if`, `function`, `switch`, `class` should have the
+contents indented one level. `switch` statements should have the `case` block
+contents indented another level:
+
+{{{
+#!php
+function calculate($output, $value)
+{
+	if ($conditional) {
+		$output += $value;
+	}
+	switch ($value) {
+		case 1:
+			$output *= 1.5;
+			break;
+	}
+}
+}}}
+
+Long arrays without explicit keys and most arrays with explicit keys should
+have one entry per line, indented one level from the line containing the
+beginning of the array. When array contents are indented, all double arrows
+(`=>`) should be lined up with spaces.
+
+{{{
+#!php
+// This is OK
+$types    = array('gif', 'jpeg', 'png');
+
+// This is hard to read and long
+$mappings = array('gif' => 'Graphics Interchange Format', 'jpeg' =>
+'Joint Photographic Experts Group', 'png' => 'Portable Network Graphics');
+
+// This is much easier to read
+$mappings = array(
+	'gif'  => 'Graphics Interchange Format',
+	'jpeg' => 'Joint Photographic Experts Group',
+	'png'  => 'Portable Network Graphics' 
+);
+}}}
+
+=== Blocks ===
+
+All classes and methods should have the opening and closing braces on their
+own line.
+
+{{{
+#!php
+class Example
+{
+	public function getMember()
+	{
+		return $this->member;
+	}
+}
+}}}
+
+The opening brace should '''not''' be on the same line as the class or method
+name.
+
+'''This is incorrect:'''
+
+{{{
+#!php
+class Example {
+	public function getMember() {
+		return $this->member;
+	}
+}
+}}}
+
+All flow-control code blocks, including `if`, `while`, `for`, `foreach`,
+`switch`, etc. should have the opening brace on the same line as the beginning
+of the statement.
+
+{{{
+#!php
+if ($conditional) {
+	$total = 1;
+} else {
+	$total = 2;
+}
+
+while ($conditional) {
+	$total++;
+	$conditional = $total % 5;
+}
+}}}
+
+'''This is incorrect:'''
+
+{{{
+#!php
+if ($conditional)
+{
+	$total = 1;
+}
+}}}
+
+All flow-control code block should also have a single space after the statement
+name before the `(` or `{`. `else` statements should have a space before and
+after the word. `else/if` statements should be written as `elseif`, '''not'''
+`else if`.
+
+{{{
+#!php
+if ($conditional) {
+	$total = 1;
+} elseif($other_condition) {
+	$total = 0;
+} else {
+	$total = 2;
+}
+}}}
+
+== Naming Conventions ==
+
+=== Classes, Methods, Members and Constants ===
+
+All classes are written in `UpperCamelCase`, methods are writen in
+`lowerCamelCase`, members are written in `lower_underscore_notation` and
+constants are written in `UPPER_UNDERSCORE_NOTATION`.
+
+{{{
+#!php
+<?php
+class MyExample
+{
+	const MY_CONSTANT = 'constant';
+
+	private $my_member = NULL;
+
+	public function getMyMember()
+	{
+		return $this->my_member;
+	}
+}
+}}}
+
+=== Variables ===
+
+All variables are written in lower_underscore_notation.
+
+{{{
+#!php
+<?php
+$my_var = 'Hello World';
+}}}
+
+=== Acronyms ===
+
+Acronyms in class, method and constant names are written as all uppercase.
+Acronyms in members and variables are written as all lowercase.
+
+{{{
+#!php
+class USPSRates
+{
+	const APO_FPO_REGEX = '#^\s*(APO|FPO)\s+([A-Z]{2})\s+#i';
+	
+	private $web_service_url;	
+
+	public function setWebServiceURL($url)
+	{
+		$this->web_service_url = $url;
+	}		
+}
+}}}

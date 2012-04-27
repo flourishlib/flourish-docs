@@ -1,0 +1,195 @@
+= fHTML =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fHTML Class Documentation]'''
+ - [/api/fHTML API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fHTML.php Source Code]
+
+<<toc bare>>
+)))
+
+The fHTML class helps to manipulate text so that it can be reliably converted for HTML display.
+
+== Escaping Content (Security) ==
+
+When developing websites that allow for user-generated content, it can be challenging to ensure that all content entered is displayed as it was intended to be displayed. Certain content may allow HTML, while other may not. The fHTML class provides two static methods for escaping data to be displayed, ::encode() and ::prepare(). Both methods treat all content as UTF-8.
+
+=== Disallowing HTML ===
+
+If there is a need to escape content that does not allow HTML, the static method ::encode() should be used. This method will encode special characters, including the < and > characters used for HTML tags. Because of this, all HTML tags will be displayed as plain text, and will not function as HTML.
+
+'''It is very important that all untrusted user input be escaped using this method to prevent cross-site scripting attacks.''' See the [/docs/Security security page] for more information.
+
+{{{
+#!php
+echo fHTML::encode($form_submitted_content);
+}}}
+
+`encode()` also properly escapes characters for display inside of HTML `input`, `textarea` and `select` tags.
+
+=== Allowing HTML ===
+
+`prepare()` will ensure that all special characters in the provided content will be properly displayed, while allowing HTML tags and entities. '''This method should only be used for content coming from trusted sources otherwise the code will be vulnerable to cross-site scripting attacks.'''
+
+{{{
+#!php
+echo fHTML::prepare($trusted_content);
+}}}
+
+== Formatting ==
+
+In addition to preparing content for valid display by encoding content, often times content needs to have some basic HTML formatting applied to it. The fHTML class provides two methods, ::convertNewlines() and ::makeLinks(), to help with common formatting tasks.
+
+`convertNewlines()` will look at content as a mixture of plain text and HTML. If neither the `<br />` or any block-level HTML tags are found, the content will have all newline characters converted to `<br />`. If the converse is true, the content will be returned as is.
+
+Below is an example of the conversion happening:
+
+{{{
+#!php
+// First example, no block-level HTML
+$content = <<<TEXT
+Here is content to be formatted.
+
+Newline characters will be converted into HTML break tags.
+TEXT;
+echo fHTML::convertNewlines($content);
+}}}
+
+The output from above would be:
+
+{{{
+#!html
+Here is content to be formatted.<br />
+<br />
+Newline characters will be converted into HTML break tags.
+}}}
+
+Here is an example of newlines being left as-is due to block-level HTML:
+
+{{{
+#!php
+// Second example, block-level HTML present
+$content2 = <<<TEXT
+<p>
+    Here is content to be formatted.
+</p>
+<p>
+   Newline characters will be left alone since there are block-level HTML tags present.
+</p>
+TEXT;
+echo fHTML::convertNewlines($content2);
+}}}
+
+The output from above would be:
+
+{{{
+#!html
+<p>
+    Here is content to be formatted.
+</p>
+<p>
+   Newline characters will be left alone since there are block-level HTML tags present.
+</p>
+}}}
+
+The ::makeLinks() method will parse through a string and create HTML links out of anything that resembles a URL or email address, as long as it is not already part of an `<a>` tag.
+
+Here is an example of it in action:
+
+{{{
+#!php
+$content  = "Example 1: www.example.com.\n";
+$content .= "Example 2: https://example.com.\n";
+$content .= "Example 3: john@example.com.\n";
+$content .= "Example 4: ftp://john:password@example.com.\n";
+$content .= "Example 5: www.example.co.uk.\n";
+$content .= "Example 6: john@example.co.uk.\n";
+$content .= 'Example 7: <a href="http://example.com">http://example.com</a>.';
+
+echo fHTML::makeLinks($content);
+}}}
+
+The output would be:
+
+{{{
+#!html
+Example 1: <a href="http://www.example.com">www.example.com</a>.
+Example 2: <a href="https://example.com">https://example.com</a>.
+Example 3: <a href="mailto:john@example.com">john@example.com</a>.
+Example 4: <a href="ftp://john:password@example.com">ftp://john:password@example.com</a>.
+Example 5: <a href="http://www.example.co.uk">www.example.co.uk</a>.
+Example 6: <a href="mailto:john@example.co.uk">john@example.co.uk</a>.
+Example 7: <a href="http://example.com">http://example.com</a>.
+}}}
+
+== Select Options and Checkboxes ==
+
+When displaying `select` and `checkbox` inputs it is necessary to print specific attributes to specify the current state of the inputs. The fHTML class provides two helper methods to simply this process: ::printOption() and ::showChecked().
+
+::printOption() will display a `select` input `option` tag while marking it with `selected="selected"` if the option’s value equals the currently selected value. The following PHP:
+
+{{{
+#!html
+<select name="status">
+    <?
+    $statuses = array(
+        'active'   => 'Active',
+        'inactive' => 'Inactive',
+        'pending'  => 'Pending'
+    );
+    $current_status = 'active';
+    
+    foreach ($statuses as $value => $text) {
+        fHTML::printOption($text, $value, $current_status);
+    }
+    ?>
+</select>
+}}}
+
+would produce the following HTML:
+
+{{{
+#!html
+<select name="status">
+    <option value="active" selected="selected">Active</option>
+    <option value="inactive">Inactive</option>
+    <option value="pending">Pending</option>
+</select>
+}}}
+
+::showChecked() provides similar functionality for checkboxes, however since checkboxes can include many different attributes, `showChecked()` only handles printing the `checked="checked"` part. Here is an example of using `showChecked()`:
+
+{{{
+#!html
+<?php
+$is_authenticated = TRUE;
+$is_super_admin   = FALSE;
+?>
+<p>
+    <label for="form-is_authenticated">Is Authenticated</label><br />
+    <input type="checkbox" id="form-is_authenticated" name="is_authenticated" value="1" <? fHTML::showChecked($is_authenticated, TRUE) ?> />
+</p>
+<p>
+    <label for="form-is_super_admin">Is Super Admin</label><br />
+    <input type="checkbox" id="form-is_super_admin" name="is_super_admin" value="1" <? fHTML::showChecked($is_super_admin, TRUE) ?> />
+</p>
+}}}
+
+would produce the following output:
+
+{{{
+#!html
+<p>
+    <label for="form-is_authenticated">Is Authenticated</label><br />
+    <input type="checkbox" id="form-is_authenticated" name="is_authenticated" value="1" checked="checked" />
+</p>
+<p>
+    <label for="form-is_super_admin">Is Super Admin</label><br />
+    <input type="checkbox" id="form-is_super_admin" name="is_super_admin" value="1" />
+</p>
+}}}
+
+== Sending the Content Type Header ==
+
+If you default content is HTML, the method ::sendHeader() should be called ensure that the `Content-Type` header is set to the correct value of `text/html; charset=utf-8`. The `utf-8` character set encoding is specified since all of Flourish is built to work with UTF-8.

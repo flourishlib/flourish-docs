@@ -1,0 +1,77 @@
+= fText =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fText Class Documentation]'''
+ - [/api/fText API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fText.php Source Code]
+
+<<toc bare>>
+)))
+
+The fText class is a static class with the sole purpose of creating a hook to allow for writing internationalized application and localizing Flourish. None of the Flourish classes require it be loaded, but if it is, all message/parameter interpolation is passed through this class.
+
+== Composing Messages ==
+
+The fText class includes a key method to help with the i18n of code. The method ::compose() allows creating a message in multiple pieces that are later interpolated, allowing for efficient translation efforts.
+
+Typically, a call to `compose()` will look like:
+
+{{{
+#!php
+// Example variable values
+$message_type      = 'error';
+$message_part_name = 'parts';
+
+echo fText::compose(
+    'This is an example of displaying an %1$s message containing variable %2$s',
+    $message_type,
+    $message_part_name
+);
+}}}
+
+which would produce the result:
+
+{{{
+This is an example of displaying an error message containing variable parts
+}}}
+
+At its core, `compose()` is simply a wrapper around [http://php.net/sprintf `sprintf()`]. However, being a wrapper allows setting up two hooks for translation. The method ::registerComposeCallback() allows us to intercept any string sent to `compose()` and modify it. The first parameter, `$timing`, allow registering the callback `'pre'` or `'post'` the `sprintf()` call. The second parameter, `$callback`, defines which method to pass the string to.
+
+Any callback registered `pre` will get the un-interpolated string, while any callback registered `post` will get the interpolated string. Here is an example of translation using compose:
+
+{{{
+#!php
+function translate($string)
+{
+    static $translations = array(
+        'This is an example of displaying an %1$s message containing variable %2$s' => 'This is an %1$s message containing %2$s'
+    );
+
+    if (isset($translations[$string])) {
+        return $translations[$string];
+    }
+    return $string;
+}
+
+fText::registerComposeCallback('pre', 'translate');
+
+$message_type      = 'error';
+$message_part_name = 'parts';
+
+echo fText::compose(
+    'This is an example of displaying an %1$s message containing variable %2$s',
+    $message_type,
+    $message_part_name
+);
+}}}
+
+The above PHP would output the following:
+
+{{{
+This is an error message containing parts
+}}}
+
+== Localization of Flourish ==
+
+Every exception and error in Flourish will be passed through ::compose(), thus allowing for localization of the Flourish code base. Please see the MessagesList page for a list of all messages and their location in the source code.

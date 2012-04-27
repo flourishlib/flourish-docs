@@ -1,0 +1,217 @@
+= fCore =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fCore Class Documentation]'''
+ - [/api/fCore API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fCore.php Source Code]
+
+<<toc bare>>
+)))
+
+The fCore class centralizes debugging, error and exception handling and more.
+
+== Error/Exception Handling ==
+
+When maintaining production systems, knowing about errors and unhandled exceptions that have occurred is key. The fCore class provides two handy methods to simply this task. 
+
+The ::enableErrorHandling() and ::enableExceptionHandling() methods each take a first parameter that is the destination for errors and unhandled exceptions respectively. The options are an email address, a file, or the string `'html'` for output into the currently rendering page.
+
+Since unhandled exceptions cause the page execution to stop immediately, ::enableExceptionHandling() takes a callback as a second parameter to allow you to cleanly finish HTML output. The optional third parameter is an array of parameters to send to the callback. 
+
+Both the error and exception handling provide full backtraces, allowing for an easy time finding bugs.
+
+{{{
+#!php
+// Set the site to send me an email every time an error or unhandled exception gets thrown
+fCore::enableErrorHandling('will@flourishlib.com');
+fCore::enableExceptionHandling('will@flourishlib.com', array($templating, 'place'), array('footer'));
+
+// Set the site to log errors and exceptions to my logs dir
+fCore::enableErrorHandling($_SERVER['DOCUMENT_ROOT'] . '/writable/logs/errors.log');
+fCore::enableExceptionHandling($_SERVER['DOCUMENT_ROOT'] . '/writable/logs/exceptions.log', array($templating, 'place'), array('footer'));
+
+// Set the site to display errors and exception in the html
+fCore::enableErrorHandling('html');
+fCore::enableExceptionHandling('html', array($templating, 'place'), array('footer'));
+}}}
+
+Multiple email addresses may be specified, separated by commas.
+
+{{{
+#!php
+fCore::enableErrorHandling('will@flourishlib.com,john.smith@example.com');
+}}}
+
+By default, error and exception output includes a dump of the state of a number of PHP superglobals including `$_GET`, `$_POST`, `$_FILES`, `$_COOKIE`, `$_SESSION` and `$_SERVER` to aid in debugging. It is possible to disable this functionality by calling ::disableContext().
+
+{{{
+#!php
+// Disable the context dumps that happen with error and exception handling
+fCore::disableContext();
+}}}
+
+=== Using an SMTP Connection ===
+
+By default, error and exception emails are sent using the `mail()` function. An SMTP server may be used by passing an instance of fSMTP and a `From` email address to ::configureSMTP().
+
+{{{
+#!php
+$smtp = new fSMTP('server.example.com');
+$smtp->authenticate('username', 'password');
+fCore::configureSMTP($smtp, 'noreply@example.com');
+}}}
+
+== Capturing Errors ==
+
+While exceptions are fairly easy to use due to the way they bubble up to the closest matching `catch` block, errors in PHP are not as simple. Errors don't interrupt program flow and can only be captured by an error handler. ::startErrorCapture() and ::stopErrorCapture() provide functionality that allows capturing errors and returning them in an array for futher processing.
+
+{{{
+#!php
+// Here we don't need warning messages if this fails, we can just check to see if $result is FALSE
+fCore::startErrorCapture();
+$result = file_get_contents('http://example.com');
+$errors = fCore::stopErrorCapture();
+}}}
+
+While a similar result can be accomplished by using the [http://php.net/error_reporting `error_reporting()`] function and simplying lowering the error reporting level, this may not be available if it has been set via the `php_admin_value` Apache configuration directive.
+
+In addition, turning down `error_reporting()` does not allow for acting upon errors, just silencing them. Since `stopErrorCapture()` returns an array of information about each error that occurred, the messages can be used to determine the next course of action or combined into an exception.
+
+{{{
+#!php
+fCore::startErrorCapture();
+$connection = pg_connect('dbname=example');
+$errors = fCore::stopErrorCapture();
+if (!$connection) {
+    $error_strings = array();
+    foreach ($errors as $error) {
+         $error_strings[] = $error['string'];
+    }
+    throw new fConnectivityException("Unable to connect to the PostgreSQL database:\n%s", join("\n", $error_strings));
+}
+}}}
+
+It is possible to capture only specific `$types` of errors by passing them as the first parameter to `startErrorCapture()`. The values are the same as those passed to `error_reporting()`, a bitmask of the desired error types. The captured messages can be further restricted by passing a PCRE `$regex` as the second parameter. Any errors that are not captured are passed on to the normal error handler.
+
+''Please note that all errors that match `$types` will be captured, even if they are excluded by the current `error_reporting()` setting.''
+
+{{{
+#!php
+// Capture only warnings about SSL
+fCore::startErrorCapture(E_WARNING, '#ssl#i');
+}}}
+
+It is also possible to capture all errors, but only return some from `stopErrorCapture()`. This is accomplished by by passing a PCRE `$regex` as the first parameter.
+
+{{{
+#!php
+// Capture all warnings, but only return errors about SSL
+fCore::startErrorCapture(E_WARNING);
+// …
+$errors = fCore::stopErrorCapture('#ssl#i');
+}}}
+
+== Debugging ==
+
+fCore provides a few useful functions when you are trying to debug code. The simplest way to debug is to use the ::expose() method to show the contents of a file. ::expose() creates output similar to [http://php.net/print_r `print_r()`], however it uses symbols to differentiate between `''`, `NULL` and `FALSE`. Here is a usage example.
+
+{{{
+#!php
+fCore::expose(array('foo', 1, '', NULL, FALSE, TRUE));
+}}}
+
+The above call to ::expose() would create the following HTML:
+
+{{{
+#!html
+<pre class="exposed">Array
+(
+    [0] => foo
+    [1] => 1
+    [2] => {empty_string}
+    [3] => {null}
+    [4] => {false}
+    [5] => {true}
+)</pre>
+}}}
+
+If you want to set your code up to conditionally display debugging information, you’ll want to use the ::debug() method. Content sent to ::debug() is displayed via ::expose() only if ::enableDebugging() has been passed `TRUE` or if the second parameter, `$force`, is `TRUE`. 
+
+{{{
+#!php
+// Enable debugging
+fCore::enableDebugging(TRUE);
+
+// Display a debugging message only when fCore::enableDebugging() has been called
+fCore::debug('This is only shown when fCore::enableDebugging(TRUE) is called before this code', FALSE);
+
+// Display a debugging message even if fCore::enableDebugging() has not been called
+fCore::debug('This will always be shown', TRUE);
+}}}
+
+If you wish to pass debug information to another debugging or logging system, a callback can be registered via the static method ::registerDebugCallback(). This method accepts a single parameter, the `$callback` to send all debug messages to. The `$callback` should accept a single parameter, a string debug message.
+
+{{{
+#!php
+// Create a function to handle debug messages
+function handleDebug($message)
+{
+    // Code to pass message to another debugging or logging system
+}
+ 
+// Register the function as the message handler
+fCore::registerDebugCallback('handleDebug');
+}}}
+
+The ::backtrace() method provides a compact and nicely formatted version of [http://php.net/debug_backtrace `debug_backtrace()`]. Below is an example of usage:
+
+{{{
+#!php
+class Example {
+    static public function backtrace()
+    {
+        fCore::expose(fCore::backtrace());
+    }
+}
+
+Example::backtrace();
+}}}
+
+Which would produce the following HTML:
+
+{{{
+#!html
+<pre class="exposed">
+{doc_root}/example.php(8): Example::backtrace()
+{doc_root}/example.php(4): fCore::backtrace()
+</pre>
+}}}
+
+== Environment Handling ==
+
+In some situations it is necessary to write code based on the version of PHP or the operating system the code is running on.
+
+The static method ::checkVersion() will return `TRUE` if the currently running version of PHP is greater or equal to the version string passed in.
+
+{{{
+#!php
+if (fCore::checkVersion('5.1')) {
+    echo 'You are running PHP version 5.1 or newer';
+}
+}}}
+
+The static method ::checkOS() will return `TRUE` if the current operating system is one of the OSes passed in as a parameter. Valid operating system strings include:
+
+ - `'linux'`
+ - `'bsd'`
+ - `'osx'`
+ - `'solaris'`
+ - `'windows'`
+
+{{{
+#!php
+if (fCore::checkOS('bsd', 'osx')) {
+    echo 'You are running either a BSD or OSX';
+}
+}}}

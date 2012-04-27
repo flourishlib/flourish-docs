@@ -1,0 +1,240 @@
+= fException =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fException Class Documentation]'''
+ - [/api/fException API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fException.php Source Code]
+
+<<toc bare>>
+
+== Exception Classes <<toc skip>> ==
+ - '''fException'''
+  - fExpectedException
+   - fAuthorizationException
+   - fEmptySetException
+   - fNoRemainingException
+   - fNoRowsException
+   - fNotFoundException
+   - fValidationException
+  - fUnexpectedException
+   - fConnectivityException
+   - fEnvironmentException
+   - fProgrammerException
+   - fSQLException
+)))
+
+fException is the base Flourish exception class. It supplements the standard Exception class methods most notably with the ability to easily print the exception to the screen, but it also adds the ability to change the exception message after the object is created.
+
+Exceptions are used throughout Flourish in an attempt to fail as noisily and quickly as possible when the code can not repair the situations. This follows the [http://www.faqs.org/docs/artu/ch01s06.html#id2878538 Rule of Repair] from the [http://www.faqs.org/docs/artu/ Art of Unix Programming].
+
+The exceptions in Flourish purposefully use inheritance to allow for classification of exceptions when catching them. You probably don’t ever really want to toss an fException, and normally wouldn’t want to toss an fExpectedException or fUnexpectedException, but instead should use one of the specific sub-classes. However, when creating `catch` statements it may be beneficial to catch one of the generalized higher-level exception classes.
+
+''To the right you will see a list of all of the Flourish exception classes.''
+
+== Instantiation ==
+
+fException has a constructor that is compatible with a normal exception class, but also adds the ability to be able to perform [http://php.net/sprintf `sprintf()`] interpolation and hooks in with the fText class to allow for easy localization.
+
+The constructor requires just a single parameter, the message to be thrown. If that message contains any formatting codes that are compatible with `sprintf()`, additional parameters will be used for the values. If an extra parameters is passed, it will be set as the exception code.
+
+''Please note all of these example use fProgrammerException since fException is abstract.''
+
+{{{
+#!php
+// Simple usage
+throw new fProgrammerException('The method specified does not exist');
+
+// Using sprintf for interpolation
+throw new fProgrammerException('The method specified, %s, does not exist', $method);
+
+// Adding an exception code
+throw new fProgrammerException('The method specified, %s, does not exist', $method, 1234);
+
+// An exception code without interpolation
+throw new fProgrammerException('The method specified does not exist', 1234);
+}}}
+
+One of the main benefits of using interpolation is that the non-interpolated message will be passed to fText::compose() if fText has been loaded, which allows for localization of exception messages. This technique is used throughout Flourish.
+
+== Printing ==
+
+The method ::printMessage() allows for easy display and formatting of the message. It will echo a `<p>` tag containing the message if the message has no block-level HTML tags, or a `<div>` tag if the message contains block-level HTML. The tag will have a `class` attribute that is set to `exception {exception_class_name}`.
+
+The examples below use sub-classes of fException since it is abstract and thus can not be instantiated.
+
+{{{
+#!php
+$exception = new fValidationException('This is the message');
+$exception->printMessage();
+
+$exception2 = new fValidationException('<p>This is the message</p>');
+$exception2->printMessage();
+}}}
+
+Would output the following HTML:
+
+{{{
+#!html
+<p class="exception validation_exception">
+    This is the message
+</p>
+<div class="exception validation_exception">
+    <p>This is the message</p>
+</div>
+}}}
+
+== Modification ==
+
+Sometimes when handling an error you need to modify the message in an exception, without losing the backtrace information. If you were to get the message from one exception, modify it, and then create a new exception with that message, the whole backtrace would be lost.
+
+In these situations it is essential to be able to modify the exception message. This can be done by passing the new message to the method ::setMessage(). Here is an example:
+
+{{{
+#!php
+$exception = new fValidationException('This is a test');
+$exception->setMessage('This is the test');
+$exception->printMessage();
+}}}
+
+The PHP above would echo the following HTML:
+
+{{{
+#!html
+<p class="exception validation_exception">
+    This is the test
+</p>
+}}}
+
+== Reordering Messages ==
+
+Most of the validation in Flourish, such as fValidation and fActiveRecord, create exception messages containing a list of all of the encountered errors. Sometimes it is necessary to reorder the list of errors so they coincide with the order of HTML form inputs.
+
+The method ::reorderMessage() accepts any number of strings to match, and reorders the list items in the message based on the parameter order. Below is an example to show how it works. First, assume the exception contains the following message:
+
+{{{
+#!html
+<p>The following problems were found:</p>
+<ul>
+    <li>Address: Please enter a value</li>
+    <li>Email: Please enter a value</li>
+    <li>City: Please enter a value</li>
+    <li>State: Please enter a value</li>
+    <li>Zip Code: Please enter a value</li>
+    <li>Last Name: Please enter a value</li>
+    <li>First Name: Please enter a value</li>
+</ul>
+}}}
+
+The following PHP would reorder the list items:
+
+{{{
+#!php
+$exception->reorderMessage('First Name', 'Last', 'Email', 'Address');
+}}}
+
+The exception message would then be changed to:
+
+{{{
+#!html
+<p>The following problems were found:</p>
+<ul>
+    <li>First Name: Please enter a value</li>
+    <li>Last Name: Please enter a value</li>
+    <li>Email: Please enter a value</li>
+    <li>Address: Please enter a value</li>
+    <li>City: Please enter a value</li>
+    <li>State: Please enter a value</li>
+    <li>Zip Code: Please enter a value</li>
+</ul>
+}}}
+
+Any list items that do not match a parameter will be included at the end of the list, in the same order they existed in the original message.
+
+The matching of strings in done in a case-sensitive manner and the most-specific strings are matched first. Thus if the parameters to `reorderMessage()` were `Name` and `Last Name`, `Last Name:…` would be matched first and placed as the second list item. Then the `Name` string would match against `First Name:…` and it would be set as the first list item.
+
+== Splitting Messages ==
+
+Most of the validation in Flourish, such as fValidation and fActiveRecord, create exception messages containing a list of all of the encountered errors. These lists are built using HTML unordered lists. Sometimes when creating long forms, it is more usable to split the messages into multiple parts to display in the appropriate places on the form.
+
+The instance method ::splitMessage() accepts any number of arrays of strings, `$list_item_matches`, and returns an array of filtered messages. Any list item that contains one of the strings will be included in the corresponding filtered message, with the non-list portions of the message also being included in each filtered message.
+
+The easiest way to understand the functionality is to see an example. First, assume the exception contains the following message:
+
+{{{
+#!html
+<p>The following problems were found:</p>
+<ul>
+    <li>First Name: Please enter a value</li>
+    <li>Last Name: Please enter a value</li>
+    <li>Email: Please enter a value</li>
+    <li>Address: Please enter a value</li>
+    <li>City: Please enter a value</li>
+    <li>State: Please enter a value</li>
+    <li>Zip Code: Please enter a value</li>
+</ul>
+}}}
+
+Passing these two `$list_item_matches` to `splitMessage()` would split the exception into two strings:
+
+{{{
+#!php
+list ($name_exception, $address_exception) = $exception->splitMessage(
+    array('First Name', 'Last Name', 'Email'),
+    array('Address', 'City', 'State', 'Zip Code')
+);
+}}}
+
+The resulting strings would be:
+
+{{{
+#!html
+<p>The following problems were found:</p>
+<ul>
+    <li>First Name: Please enter a value</li>
+    <li>Last Name: Please enter a value</li>
+    <li>Email: Please enter a value</li>
+</ul>
+}}}
+
+and
+
+{{{
+#!html
+<p>The following problems were found:</p>
+<ul>
+    <li>Address: Please enter a value</li>
+    <li>City: Please enter a value</li>
+    <li>State: Please enter a value</li>
+    <li>Zip Code: Please enter a value</li>
+</ul>
+}}}
+
+Notice that the resulting strings will contain the list items in the same order that the strings are set to the `$list_item_matches` arrays. This allows re-ordering the list items while also filtering them.
+
+It is possible to pass any number of `$list_item_matches` to `splitMessage()`, resulting in an equal number of strings in the array result.
+
+If no list items are found in the message, the first value in the returned array will contain the original message and all other array values will be an empty string.
+
+== Backtraces ==
+
+Every exception that is thrown include a full backtrace of all of the function and methods calls that lead up to the point when the exception was thrown. The base Exception class includes two methods to access the backtrace, `getTrace()` and `getTraceAsString()`. `getTrace()` returns an array of the information for each step in the backtrace, while `getTraceAsString()` formats all of the backtrace information into a string.
+
+fException includes two methods to supplement the built-in backtrace support, ::formatTrace() and ::printTrace(). `formatTrace()` takes the formatted backtrace string and modifies it to be a little more readable. Below is an example of the type of output created.
+
+{{{
+{doc_root}/example.php(326): fActiveRecord->store()
+{doc_root}/inc/classes/trunk/classes/fActiveRecord.php(1386): fActiveRecord->validate()
+{doc_root}/inc/classes/trunk/classes/fActiveRecord.php(1564): fCore::toss('fValidationExce...', 'The followin...')
+}}}
+
+The method ::printTrace() takes the formatted trace and displays it inside of a `pre` tag with CSS classes in the format `exception {exception_class_name} trace`.
+
+{{{
+#!html
+<pre class="exception validation_exception trace">
+{doc_root}/example.php(326): fActiveRecord->store()
+{doc_root}/inc/classes/trunk/classes/fActiveRecord.php(1386): fActiveRecord->validate()
+{doc_root}/inc/classes/trunk/classes/fActiveRecord.php(1564): fCore::toss('fValidationExce...', 'The followin...')
+</pre>
+}}}

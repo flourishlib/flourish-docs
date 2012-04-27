@@ -1,0 +1,203 @@
+= fXML =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fXML Class Documentation]'''
+ - [/api/fXML API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fXML.php Source Code]
+
+<<toc bare>>
+)))
+
+The fXML class provides functionality to read and create XML. An fXML object represents an XML string for reading/traversing, but does not allow modification. The static methods ::encode() and ::sendHeader() are useful when creating XML.
+
+== Instantiation ==
+
+The fXML constructor will accept four different types of sources for the XML to represent:
+
+ 1. An fFile object
+ 2. A file path
+ 3. A URL
+ 4. An XML string
+
+{{{
+#!php
+// From an fFile
+$file = new fFile('/path/to/file');
+$xml  = new fXML($file);
+
+// From a file path
+$xml  = new fXML('/path/to/file');
+
+// From a URL
+$xml  = new fXML('http://example.com/rss');
+
+// From an XML string
+$xml  = new fXML('<?xml …');
+}}}
+
+XML files with invalid data will cause an fValidationException to be thrown.
+
+When fetching XML from a URL, an optional second parameter, `$timeout`, can be specified. If not specified, the `default_socket_timeout` ini setting is used.
+
+{{{
+#!php
+// Fetch the XML with a 5 second timeout
+$xml = new fXML('http://examples.com/rss', 5);
+}}}
+
+=== Fixing Invalid XML ===
+
+Two of the most common errors when creating XML are encoding characters as HTML entities for XML and delivering `ISO-8859-1` (or `Windows-1252`) encoded XML as `UTF-8`. An optional boolean parameter, `$fix_entities_encoding` can fix both of these problems.
+
+{{{
+#!php
+// Used with an HTTP timeout
+$xml = new fXML('http://example.com/rss', 5, TRUE);
+
+// Used without a timeout
+$xml = new fXML('./foo.xml', TRUE);
+}}}
+
+==== Invalid Named Entities ====
+
+In XML, there are only five pre-defined named entities: `&amp;`, `&gt;`, `&lt;`, `&quot;` and `&apos;`. All other named entities from HTML will cause a parse error if included in XML without further encoding. For instance, `&rsquo;` is invalid, but `&amp;rsquo;` or `’` is valid.
+
+`$fix_entities_encoding` will take
+
+{{{
+#!xml
+<book><title>Isn&rsquo;t Valid XML</title></book>
+}}}
+
+and convert it to
+
+{{{
+#!xml
+<book><title>Isn’t Valid XML</title></book>
+}}}
+
+before passing the XML to the parser.
+
+==== Incorrectly Encoded Content ====
+
+If no encoding is specified for an XML document, the encoded is assumed to be UTF-8. Many developers not familiar with XML and issues related to encoding will omit the encoding attribute of the `<?xml>` tag and will insert `ISO-8859-1` or `Windows-1252` (also called Latin or Latin 1) content.
+
+fXML will throw an exception when such an XML document is parsed, since the parser being used will find invalid UTF-8 characters and give up encoding. The `$fix_entities_encoding` parameter will detect non-UTF-8 characters for documents defined as UTF-8 (whether explicitly or by omission of the encoding attribute) and convert the content.
+
+== Element Information ==
+
+Information about the root XML element that was passed into the constructor can be accessed by the following methods:
+
+|| '''Method'''     || '''Description''' ||
+|| ::getName()      || Returns the name of the element ''without'' any preceding namespace prefix ||
+|| ::getNamespace() || Returns the full namespace URI for the element, ''if any'' ||
+|| ::getPrefix()    || Returns the namespace prefix for the element, ''if any'' ||
+|| ::getText()      || Returns the text content of the element ||
+
+== Raw XML ==
+
+The raw XML being modeled by the fXML object can be retrieved by calling the method ::toXML().
+
+{{{
+#!php
+echo $xml->toXML();
+}}}
+
+== Attribute Values ==
+
+Attributes of the XML element can be accessed using array notation.
+
+{{{
+#!php
+// Normal attribute
+echo $xml['my_attribute'];
+
+// Attribute with namespace prefix
+echo $xml['ns:attribute'];
+}}}
+
+== Child Element Text Content ==
+
+The text content of children of the XML element can be accessed by requesting object memebers.
+
+{{{
+#!php
+// The content of the child element "firstName"
+echo $xml->firstName;
+
+// Child "title" in the "ns" prefix
+echo $xml->{'ns:title'};
+}}}
+
+== Traversing ==
+
+For anything beyond attribute and child element text content of the root XML element, the ::xpath() method will need to be used. This method returns an array of all matching parts of the XML file.
+
+If you aren't familiar with XPath, the [http://en.wikipedia.org/wiki/XPath_1.0 Wikipedia page about XPath 1.0] is a good place to start. XPath allow traversal of the XML file using element names combined with predicates and functions.
+
+::xpath() accepts two parameter, the XPath `$path`, and optionally a boolean flag, `$first_only`, to return only the first match.
+
+{{{
+#!php
+// Select every "item" element in the "channel"
+foreach ($xml->xpath("channel/item") as $item) {
+    echo $item->title;
+}
+}}}
+
+The items matched by `xpath()` may be child elements, text content or attributes. Here are the data types for various types of matches:
+
+ - '''XML Element:''' an fXML object with an integer array key
+ - '''Attribute:''' a string with the array key being the attribute name
+ - '''Text Content:''' a string with an integer array key
+
+It is also possible to pull back just the first matched element by passing the second parameter as `TRUE`.
+
+{{{
+#!php
+// Pull the first attribute only, thus returning a string
+echo $xml->xpath('@attribute', TRUE);
+}}}
+
+== Custom Prefixes ==
+
+When using XPath, array-style attribute access or child element text content access, it can be useful to set a custom namespace prefix to allow for compatibility with various XML sources. The method ::addCustomPrefix() accepts two parameters, the `$ns_prefix` to register and its corresponding `$namespace`. One registered, this prefix will be available throughout fXML.
+
+{{{
+#!php
+$xml = new fXML('http://example.com/rss');
+$xml->addCustomPrefix('pf', 'http://namspace');
+
+echo $xml['pf:attribute'];
+echo $xml->{'pf:child'};
+foreach ($xml->xpath('pf:*') as $element) {
+    echo $element->getText();
+}
+}}}
+
+== Encoding Data ==
+
+When creating XML documents, such as RSS feeds, it is necessary to create properly encoded XML, otherwise strict XML parsers will not be able to parse the document. The ::encode() method will ensure that all content is properly encoded for including in a UTF-8 XML file.
+
+Here is an example of usage:
+
+{{{
+#!php
+$xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+$xml .= "<articles>";
+
+foreach ($articles as $article) {
+    $xml .= "<article><title>";
+    $xml .= fXML::encode($article->getTitle());
+    $xml .= "</title><description>";
+    $xml .= fXML::encode($article->getDescription());
+    $xml .= "</description></article>";
+}
+
+$xml .= "</articles>";
+}}}
+
+== Sending the Content Type Header ==
+
+When sending XML files over HTTP, the method ::sendHeader() should be called ensure that the `Content-Type` header is set to the correct value of `text/xml; charset=utf-8`. The `utf-8` character set encoding is specified since all of Flourish is built to work with UTF-8 and all XML parsers must support that character set.

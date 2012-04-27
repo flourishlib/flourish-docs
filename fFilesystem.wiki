@@ -1,0 +1,109 @@
+= fFilesystem =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fFilesystem Class Documentation]'''
+ - [/api/fFilesystem API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fFilesystem.php Source Code]
+
+<<toc bare>>
+
+== Filesystem Classes <<toc skip>> ==
+ - '''fFilesystem'''
+ - fFile
+  - fImage
+ - fDirectory
+ - fUpload
+)))
+
+The fFilesystem class is a static class that provides filesystem level functionality, including the ability to bundle operations into transactions.
+
+== Creating Objects ==
+
+The static method ::createObject() acts as a factory to create the appropriate filesystem object when dealing with paths that may contain a directory, image or file.
+
+In the case that a directory is detected, an fDirectory object will be returned. In the case that a file that is compatible with the fImage object is detected, an fImage object will be returned. If neither of those conditions hold true, an fFile object will be returned.
+
+{{{
+#!php
+// This would return an fImage object
+$file = fFilesystem::createObject('./path/to/image.jpg');
+
+// This would return an fFile object
+$file = fFilesystem::createObject('./path/to/info.txt');
+
+// This would return an fDirectory object
+$dir  = fFilesystem::createObject('./path/to/dir/');
+}}}
+
+== Transactions ==
+
+When speaking of ACID-compliant relational databases, transactions are one of the key elements. The fFilesystem class provides transaction-like functionality for filesystem operations. ''Please note that the level of transactional features is '''nothing''' like an ACID-compliant RDBMS. If the web server crashes or exits in the middle of a transaction, the changes made to that point will be permanent. Please see below for a list of exactly what is affected by filesystem transactions.'' 
+
+There are four methods used when dealing with filesystem transactions:
+
+|| '''Method'''            || '''Description''' ||
+|| ::begin()               || Begins a transaction, indicating that all following Flourish filesystem operations should be grouped together for the purposes of rolling back or committing them.||
+|| ::rollback()            || Allows all changes since the transaction was started to be reversed.||
+|| ::commit()              || Causes all pending operations (such as deletes) to actually be performed.||
+|| ::isInsideTransaction() || Indicates if a transaction has been started but not rolled back or committed yet.||
+
+Here is a list of how the various fDirectory, fFile and fImage methods are affected by filesystem transactions:
+
+|| '''Method''' || '''Active Transaction Behaviour''' ||
+|| fDirectory::delete() || Directory will not be deleted from the filesystem until transaction is committed, however trying to manipulate the directory (or an sub-files or directories) via the Flourish filesystem classes will result in an exception being thrown. ||
+|| fDirectory::getSize() || The disk usage returned will include files that have been deleted during the current transaction and also placeholder files that have not yet been deleted. ||
+|| fDirectory::rename() || Directory will be renamed immediately, however a small file will be written to the old directory name to allow for a rollback to revert the directory name. The small placeholder file is deleted when a transaction is committed. ||
+|| fDirectory::scan() || A list of all file and folders contained within the directory will be returned, including files that have been deleted and placeholder files. ||
+|| fDirectory::scanRecursive() || A list of all file and folders contained within the directory (and all sub-directories) will be returned, including files that have been deleted and placeholder files. ||
+|| fFile::delete() || File will not be deleted from the filesystem until transaction is committed, however trying to manipulate the file via the Flourish filesystem classes will result in an exception being thrown. ||
+|| fFile::duplicate() || File will be duplicated immediately, however the copy will be deleted if the transaction is rolled back. ||
+|| fFile::read() || Will always read the most recently written file contents. ||
+|| fFile::rename() || File will be renamed immediately, however a small file will be written to the old filename to allow for a rollback to revert the filename. The small placeholder file is deleted when a transaction is committed. ||
+|| fFile::write() || The new file contents will be written to the file immediately, however the old file contents are saved to allow a rollback to restore the file to its original state. Warning: Large file contents can quickly increase the memory usage of PHP since the original contents are stored in memory. ||
+|| fImage::saveChanges() || The image changes will be written to disk immediately. If the new image name is the same as the old one, the old file contents will be kept in memory in case of a rollback. If the new image name is different than the old one, the old file will be kept until the transaction is committed. ||
+
+== File Paths ==
+
+=== Helper Methods ===
+
+fFilesystem provides three helper functions for dealing with file paths, ::getPathInfo(), ::makeUniqueName() and ::makeURLSafe().
+
+`getPathInfo()` provides basically the same functionality as the PHP function [http://php.net/pathinfo pathinfo()], however it provides the `filename` element for PHP 5.1 and also returns the `dirname` element with a trailing slash.
+
+`makeUniqueName()` requires a single parameter, `$file`, to specify the desired filename, and optionally allows a second parameter, `$extension`, which allows a new file extension to be specified. If a file (or directory) with the path of `$file` exists, a new filename will be created by appending `_copy#`. If `$extension` is provided, the desired filename will use that extension instead of the one included in `$file`.
+
+`makeURLSafe()` accepts a `$filename` and changes it to only include lower case characters, numbers and the `_`, `-` and `.` characters.
+
+=== Translation ===
+
+When displaying filesystem paths to access resources on the web, translation must occur. The static method ::translateToWebPath() accepts a filesystem path and returns the equivalent web server path. By default it simply removes the `$_SERVER['DOCUMENT_ROOT']`. Additional translations can be set up by passing the `$search` string and `$replace` strings to the static method ::addWebPathTranslation().
+
+Normally it would make sense to define the translations in the site config file, while `translateToWebPath()` would be used in the page code.
+
+{{{
+#!php
+// Config file
+fFilesystem::addWebPathTranslation('/var/www/vhosts/example.com/assets', '');
+}}}
+
+{{{
+#!html
+<ul>
+    <?
+    foreach ($files as $file) {
+        ?>
+        <li><a href="<?php echo fFilesystem::translateToWebPath($file->getPath()) ?>"><?php echo $file->getName() ?></a></li>
+        <?
+    }
+    ?>
+</ul>
+}}}
+
+== File Sizes ==
+
+In addition to some file path helpers, fFilesystem provides two methods to assist with file size manipulation. The method ::formatFilesize() accepts a filesize in bytes and will return a human-readable size such as `2.1tb` or `5.6mb`. ::convertToBytes() takes a human-readable filesize such as `200k` or `1.3GB` and converts it into bytes.
+
+`formatFilesize()` accepts up to two parameters with the first, `$bytes`, being the filesize of the file/directory in bytes and the second optional parameter, `$decimal_places`, being the number of decimal places to show for the formatted file size.
+
+`convertToBytes()` accepts just a single parameters, `$size`, which can be any human-readable filesize that includes units of measure such as `k`, `kilo`, `m`, `mega`, `g`, `giga`, `t`, `tera`, `b` and `bytes`. The result of the method is the filesize converted into bytes.

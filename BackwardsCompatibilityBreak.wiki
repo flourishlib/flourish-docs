@@ -1,0 +1,629 @@
+= Backwards Compatibility Breaks =
+
+On this page you will find a list of all breaks in backwards compatibility.
+Once Flourish becomes stable this will only happen with major version releases.
+During the alpha phase they are bound to happen on a regular basis, whereas
+during beta they should be rare.
+
+''If you work with any protected methods or `@internal` public methods, be sure
+to check out the [/docs/InternalBackwardsCompatibilityBreak internal backwards
+compatiblity breaks] page.''
+
+== Beta Phase ==
+
+=== [https://github.com/flourishlib/flourish-classes/commit/32c6129d Revision 1035] ===
+
+`fTemplating::create()` was removed and a new method fTemplating::attach() was
+created to provide similar functionality.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/3903f026 Revision 1031] ===
+
+`fCore::detectOpcodeCache()` was renamed to fLoader::hasOpcodeCache()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/0d744a20 Revision 1026] ===
+
+fFile::output() now automatically closes any open output buffering and discards
+the contents.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/d05c8bf0 Revision 1011] ===
+
+The email subject of error/exception emails sent by fCore has changed.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/c9e5633f Revision 1010] ===
+
+fRecordSet::sort() and fRecordSet::sortByCallback() now return a new record set
+instead of sorting the record set in place - this helps prevent side effects.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/5b17e6e6 Revision 990] ===
+
+fActiveRecord::reflect() now returns an associative array instead of a string.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/ee3eda47 Revision 984] ===
+
+fSchema::getTables(), fSchema::getColumnInfo(), fSchema::getDatabases(),
+fSchema::getKeys() and fSchema::getRelationships() now return database, schema,
+table and column names in lowercase. This may change the behavior of, or break
+ORM classes for SQLite, MySQL, PostgreSQL or MSSQL databases containing
+mixed-case identifiers, although such mixed-cased identifiers have never been
+officially supported. Please test ORM functionality when upgrading to this
+revision.
+
+Callbacks registered to the `extracted` hook via
+fDatabase::registerHookCallback() no longer receive the `$strings` parameter,
+instead all strings are added into the `$values` parameter.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/0b410b6d Revision 973] ===
+
+Updated fCore::expose() to not wrap the value in an HTML tag when PHP is being
+run via the CLI.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/0dd08754 Revision 969] ===
+
+fRequest::getBestAcceptType() and fRequest::getBestAcceptLanguage() now return
+either `NULL`, `FALSE` or a string instead of `NULL` or a string. See
+[/docs/fRequest#RetrievingHTTPAcceptValues documentation] for details of return
+values.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/a1ae8dc9 Revision 945] ===
+
+The `$contents` parameter of fEmail::addAttachment() is now first instead of
+third.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/fd0e0eae Revision 944] ===
+
+fORMFile::configureImageUploadColumn() no longer accepts the optional
+`$image_type` as the fourth parameter, instead fORMFile::addFImageMethodCall()
+must be called with `saveChanges` as the `$method` and the image type as the
+first parameter.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/a388312c Revision 943] ===
+
+fRequest::get() now strips out low bytes characters if no `$cast_to`, or if a
+`string` or `array` `$cast_to` is specified. Using the new `binary` `$cast_to`
+will leave all bytes intact. 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/91441067 Revision 942] ===
+
+fActiveRecord column `set` methods now treat strings of all whitespace the same
+as empty strings and convert them to `NULL`.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/aca98e00 Revision 934] ===
+
+Changed the parameter order in fImage::crop() from `$crop_from_x`,
+`$crop_from_y`, `$new_width`, `$new_height` to `$new_width`, `$new_height`,
+`$crop_from_x`, `$crop_from_y`.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/313acde2 Revision 917] ===
+
+Changed the array structure for child record in validation messages. Instead of
+all main record and child record messages being in a single array with keys in
+the form of `child_table[0]::column`, there is now a `child_table[0]` key that
+points to an array containing a `name` key and an `errors` key. The value for
+`name` is the name of the child record, e.g. `Child Record #1`. The value for
+`errors` is an array of validation messages with the keys being the column
+names and the values being the validation messages. Thus:
+
+{{{
+array(
+    'first_name' => 'First Name: Please enter a value',
+    'user_permissions[0]::resource' => 'Resource: Please enter a value'
+)
+}}}
+
+would now be represented as:
+
+{{{
+array(
+    'first_name' => 'First Name: Please enter a value',
+    'user_permissions[0]' => array(
+        'name' => 'User Permission #1',
+        'errors' => array(
+            'resource' => 'Resource: Please enter a value'
+        )
+    )
+)
+}}}
+
+Methods registered to the `pre::validate()` and `post::validate()` hooks will
+need to handle this new array structure. Code that calls `->validate(TRUE)` on
+an fActiveRecord object will need to handle this new array structure.
+fORMValidation::addStringReplacement(), fORMValidation::addRegexReplacement()
+and fORMValidation::setMessageOrder() will now only affect the specified class
+specified and will not affect messages from child records.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/28548208 Revision 915] ===
+
+Restructured individual record access, the iterator interface and callback
+parameters for fRecordSet.
+
+Removed the method `fRecordSet::fetchRecord()` - functionality can be
+replicated via the new method fRecordSet::getRecord().
+
+Manual iteration via `fRecordSet::current()`, `fRecordSet::key()`,
+`fRecordSet::next()`, `fRecordSet::rewind()` and `fRecordSet::valid()`
+(the Iterator interface) was removed and should be replaced by retrieving an
+ArrayIterator from the new method fRecordSet::getIterator(). Manual iteration
+can be performed on the ArrayIterator object.
+
+The `$pointer` parameter was replaced with `$method_name` for callbacks
+registered via fORM::registerRecordSetMethod().
+
+=== [https://github.com/flourishlib/flourish-classes/commit/94b78744 Revision 911] ===
+
+Changed fTemplating::delete() to return the value(s) of the element(s) deleted
+instead of the fTemplating instance.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/e7b5f799 Revision 904] ===
+
+fSession::add(), fSession::delete(), fSession::get(), fSession::set(),
+fTemplating::add(), fTemplating::delete(), fTemplating::get() and
+fTemplating::set() all now interpret `[` and `]` as array syntax and thus
+these can not be used in key or element names.
+
+`fTemplating::remove()` was renamed to fTemplating::filter(). 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/6ce45b67 Revision 885] ===
+
+Removed `fDatabase::enableSlowQueryWarnings()`, added ability to replicate via
+fDatabase::registerHookCallback().
+
+=== [https://github.com/flourishlib/flourish-classes/commit/1c311706 Revision 879] ===
+
+Removed support for the `odbc` and `pdo_odbc` extensions from fDatabase,
+fResult, fStatement and fUnbufferedResult. With this change, Flourish no longer
+supports any kind of ODBC connections.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/58262812 Revision 854] ===
+
+`fActiveRecord::populate{RelatedRecords}()` changed from requiring the database
+table name as the input prefix to the `underscore_notation` version of the
+class name. This will only affect related records where the class was mapped
+using fORM::mapClassToTable().
+
+=== [https://github.com/flourishlib/flourish-classes/commit/b604ea2b Revision 840] ===
+
+Renamed `fUpload::setMaxFilesize()` to fUpload::setMaxSize() to be consistent
+with fFile::getSize().
+
+=== [https://github.com/flourishlib/flourish-classes/commit/79457820 Revision 839] ===
+
+fUpload no longer accepts uploaded files that start with a `.` unless
+fUpload::allowDotFiles() is called.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/4891f35e Revision 833] ===
+
+fActiveRecord::validate() now uses column names as array keys if messages are
+returned, the `$validation_messages` parameter for the `pre::validate()` and
+`post::validate()` hooks now requires array keys be column names and
+fValidation::validate() now uses field names as array keys if messages are
+returned.
+
+fUpload::validate() no longer returns a `$_FILES` array.
+
+fValidation::addRequiredFields() no longer accepts one-or-more rules, instead
+use fValidation::addOneOrMoreRule(). fValidation::addRequiredFields() no longer
+accepts conditional rules, instead use fValidation::addConditionalRule().
+
+=== [https://github.com/flourishlib/flourish-classes/commit/72da3349 Revision 760] ===
+
+fDirectory::scan() and fDirectory::scanRecursive() to strip the current
+directory's path before matching the `$filter`
+
+=== [https://github.com/flourishlib/flourish-classes/commit/26d79b1e Revision 736] ===
+
+Renamed `fFile::getFilename()` to fFile::getName(), `fFile::getFilesize()` to
+fFile::getSize(), `fFile::getDirectory()` to fFile::getParent() and
+`fDirectory::getFilesize()` to fDirectory::getSize()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/8075c6db Revision 735] ===
+
+Added the `$force_cascade` parameter to fActiveRecord::delete() and
+fActiveRecord::store(). This change require any classes that override those
+methods be updated to include at least one parameter.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/b55d0d43 Revision 726] ===
+
+`fORM::addCustomClassTableMapping()` was renamed to fORM::mapClassToTable()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/5a19c8ed Revision 721] ===
+
+Removed the `$prefix` parameter from the methods fSession::delete(),
+fSession::get() and fSession::set()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/30b77654 Revision 720] ===
+
+Removed support for date function translation in fDatabase/fSQLTranslation
+
+=== [https://github.com/flourishlib/flourish-classes/commit/b2915f6a Revision 700] ===
+
+Renamed `fRecordSet::buildFromRecords()` to fRecordSet::buildFromArray()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/fbe71f0b Revision 659] ===
+
+Before this revision `one-to-one` relationships were not properly detected, so
+some `one-to-many` functionality such as
+`fActiveRecord::populate{RelatedRecords}()`,
+`fActiveRecord::build{RelatedRecords}()` and
+`fActiveRecord::associate{RelatedRecords}()` was working on these `one-to-one`
+relationships when it should not have.
+
+`one-to-one` relationships support `fActiveRecord::create{RelatedRecord}()`,
+`fActiveRecord::populate{RelatedRecord}()` and
+`fActiveRecord::associate{RelatedRecord}()` instead.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/e7b2d448 Revision 651] ===
+
+Renamed `fORMValidation::addConditionalValidationRule()` to
+fORMValidation::addConditionalRule(),
+`fORMValidation::addManyToManyValidationRule()` to
+fORMValidation::addManyToManyRule(),
+`fORMValidation::addOneOrMoreValidationRule()` to
+fORMValidation::addOneOrMoreRule(),
+`fORMValidation::addOneToManyValidationRule()` to
+fORMValidation::addOneToManyRule(),
+`fORMValidation::addOnlyOneValidationRule()` to
+fORMValidation::addOnlyOneRule(),
+`fORMValidation::addValidValuesValidationRule()` to
+fORMValidation::addValidValuesRule() 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/e031537c Revision 591] ===
+
+Removed `fRecordSet::flagAssociate()` and
+`fRecordSet::isFlaggedForAssociation()`, the `$associate` parameter is no
+longer passed to callbacks registered via fORM::registerRecordSetMethod() 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/a158d016 Revision 567] ===
+
+The first parameter of fSession::clear() was removed, fSession::delete() should
+now be used instead 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/d6d9c907 Revision 566] ===
+
+Moved `fCRUD::printOption()` to fHTML::printOption(), `fCRUD::showChecked()` to
+fHTML::showChecked(), `fCRUD::removeListItems()` and
+`fCRUD::reorderListItems()` to fException::splitMessage(),
+`fCRUD::generateRequestToken()` to fRequest::generateCSRFToken(), and
+`fCRUD::validateRequestToken()` to fRequest::validateCSRFToken() 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/4491abdd Revision 562] ===
+
+Removed `fORMSchema::enableSmartCaching()`, fORM::enableSchemaCaching() now
+provides equivalent functionality. `fSchema::setCacheFile()` changed to
+fSchema::enableCaching() and now requires an fCache object.
+`fSchema::flushInfo()` was renamed to fSchema::clearCache(). 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/ff14fd2a Revision 525] ===
+
+Changed the second parameter of fFile::output() from `$ignore_output_buffer`
+to `$filename`
+
+=== [https://github.com/flourishlib/flourish-classes/commit/322743e0 Revision 524] ===
+
+Removed `fDate::getSecondsDifference()`, `fTime::getSecondsDifference()`,
+`fTimestamp::getSecondsDifference()` and `fTimestamp::getSeconds()`
+
+=== [https://github.com/flourishlib/flourish-classes/commit/09f5f00a Revision 514] ===
+
+`fCore::getOS()` and `fCore::getPHPVersion()` were removed and replaced with
+fCore::checkOS() and fCore::checkVersion() 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/2691c60a Revision 499] ===
+
+Renamed `fORM::addCustomTableClassMapping()` to
+fORM::addCustomClassTableMapping() and swapped the parameters
+
+=== [https://github.com/flourishlib/flourish-classes/commit/e2e48a71 Revision 498] ===
+
+Changed fCryptography::symmetricKeyEncrypt() to not encrypt the IV since we are
+using HMAC on it 
+
+----
+
+== Alpha Phase ==
+''Most users will not have code from the Flourish alpha''
+
+=== [https://github.com/flourishlib/flourish-classes/commit/ec66b713 Revision 403] ===
+
+`fCore::stringlike()` was removed
+
+=== [https://github.com/flourishlib/flourish-classes/commit/843e4a01 Revision 402] ===
+
+`fCore::trigger()` was removed
+
+=== [https://github.com/flourishlib/flourish-classes/commit/45d33aa6 Revision 399] ===
+
+!fPrintableException was renamed to fException
+
+=== [https://github.com/flourishlib/flourish-classes/commit/b221d83a Revision 388] ===
+
+`fCore::toss()` was removed and all exceptions are now normally thrown with
+`throw new ExceptionName()`. `fCore::registerTossCallback()` was renamed to
+`fPrintableException::registerCallback()`, `fGrammar::compose()` was renamed to
+fText::compose() and `fGrammar::registerComposeCallback()` was renamed to
+fText::registerComposeCallback(). 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/6f388cad Revision 374] ===
+
+fActiveRecord hooks and method calls now have a `&$cache` parameter after the
+`&$related_records` parameter, but before any other parameters. Any method
+registered to a hook will need to have the method signature updated.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/3d22a999 Revision 364] ===
+
+Swapped the order of the last two parameters of fORMRelated::setOrderBys() so
+that `$route` (which is really just `NULL` most of the time) was last and
+optional 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/99eb5d09 Revision 361] ===
+
+Changed the existing file upload field name from
+`__flourish_existing_column_name` to `existing-column_name` and changed the
+delete file upload field name from `__flourish_delete_column_name` to
+`delete-column_name` 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/920b4098 Revision 348] ===
+
+`fNoResultsException` was renamed to fNoRowsException,
+`fResult::tossIfNoResults()` was renamed to fRequest::tossIfNoRows(),
+`fUnbufferedResult::tossIfNoResults()` was renamed to
+fUnbufferedResult::tossIfNoRows(), `fResult::getAffectedRows()` was renamed to
+fResult::countAffectedRows() and `fResult::getReturnedRows()` was renamed to
+fRequest::countReturnedRows()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/c92bb99c Revision 332] ===
+
+`fActiveRecord::has()` was renamed to fActiveRecord::hasOld() and
+`fActiveRecord::retrieve()` was renamed to fActiveRecord::retrieveOld() 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/08f818f5 Revision 331] ===
+
+`replace::` hooks are no longer allowed in fORM::registerHookCallback(),
+instead use fORM::registerActiveRecordMethod().
+`fRecordSet::registerMethodCallback()` has been renamed to
+fORM::registerRecordSetMethod().
+
+=== [https://github.com/flourishlib/flourish-classes/commit/57b8a034 Revision 308] ===
+
+Renamed `fORMDatabase::getInstance()` to fORMDatabase::retrieve() and renamed
+`fORMSchema::getInstance()` to fORMSchema::retrieve()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/45be4b92 Revision 305] ===
+
+`fUTF8::detect()` went from being public to private 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/fa6be338 Revision 304] ===
+
+`fResult::getPointer()` was removed, same functionality is available from
+fResult::key()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/b96e833e Revision 303] ===
+
+`fResult::areRemainingRows()` was removed, same functionality is available from
+fResult::valid()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/2c36cbf1 Revision 300] ===
+
+`fUpload::upload()` was renamed to fUpload::move()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/cbd894da Revision 298] ===
+
+Changed fUpload from a static class to an instance class
+
+=== [https://github.com/flourishlib/flourish-classes/commit/4c458526 Revision 294] ===
+
+Removed `fPrintableException::prepareMessage()`
+
+=== [https://github.com/flourishlib/flourish-classes/commit/e4089f17 Revision 293] ===
+
+Removed `fTimestamp::combine()`
+
+=== [https://github.com/flourishlib/flourish-classes/commit/093f2d20 Revision 289] ===
+
+Changed the replacement token in fRequest::overrideAction() from `%%action%%` to `%action%` 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/fc757f03 Revision 282] ===
+
+Changed the separator between the table name and column name for related form
+inputs from . back to :: because PHP converts . to _ - this reverts changes in
+r264
+
+=== [https://github.com/flourishlib/flourish-classes/commit/4001508d Revision 278] ===
+
+`fRecordSet::build{RelatedRecords}()` was renamed to
+`fRecordSet::prebuild{RelatedRecords}()` and
+`fRecordSet::count{RelatedRecords}()` was renamed to
+`fRecordSet::precount{RelatedRecords}()`
+
+=== [https://github.com/flourishlib/flourish-classes/commit/9ad19034 Revision 277] ===
+
+Removed `fRecordSet::countWithoutLimit()` and added the `$ignore_limit`
+parameter to fRecordSet::count()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/96b8a2f2 Revision 264] ===
+
+Changed the separator between the table name and column name for related form
+inputs from `::` to `.` - `users::user_id[]` will now be `users.user_id[]`
+
+=== [https://github.com/flourishlib/flourish-classes/commit/e27ca21b Revision 263] ===
+
+Removed `fRecordSet::buildFromPrimaryKeys()`, changed
+fORMRelated::associateRecords() to only accept an fRecordSet instead of an
+fRecordSet or an array of primary keys
+
+=== [https://github.com/flourishlib/flourish-classes/commit/c7a9f89d Revision 259] ===
+
+Renamed `fORM::createActiveRecordClass()` to fORM::defineActiveRecordClass()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/5291446a Revision 258] ===
+
+Renamed `fFilesystem::createUniqueName()` to fFilesystem::makeUniqueName()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/6329fae0 Revision 257] ===
+
+Renamed `fTimestamp::createFormat()` to fTimestamp::defineFormat()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/c6eee3ef Revision 253] ===
+
+Removed `fORMDatabase::escapeByType()`, added support for shorthand
+table.column names to fORMDatabase::escapeBySchema() to provide replacement
+functionality 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/1c247eaa Revision 251] ===
+
+The fourth parameter of fRecordSet::build() is now the page number instead of
+the offset. The page number is subtracted by one and multiplied by the limit
+to get the correct offset.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/5c3b1530 Revision 250] ===
+
+Removed `fGrammar::registerHumanizeCallback()`
+
+=== [https://github.com/flourishlib/flourish-classes/commit/97ec81f2 Revision 249] ===
+
+`fGrammar::replaceHumanize()` was renamed to
+fGrammar::registerHumanizeCallback(), `fGrammar::replaceJoinArray()` was
+renamed to fGrammar::registerJoinArrayCallback().
+`fGrammar::addAllCapitalsWord()` was removed and fGrammar::addHumanizeRule()
+was added with similar functionality.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/8399ee64 Revision 239] ===
+
+`fDate::setDate()`, `fDate::setISODate()`, `fTime::setTime()`,
+`fTimestamp::setDate()`, `fTimestamp::setISODate()`, `fTimestamp::setTime()`,
+`fTimestamp::setTimezone()`, `fTimestamp::getTimezone()` were removed. The
+fDate, fTime and fTimestamp classes all became value objects (immutable) and
+fDate::adjust(), fTime::adjust() and fTimestamp::adjust() all now return new
+objects. Each class also gained a method called `modify()` which returns a new
+object based on the current object, replacing the various set methods.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/7c6a0858 Revision 229] ===
+
+Changed fCRUD::removeListItems() so its parameters were consistent with
+fCRUD::reorderListItems()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/4ff669ca Revision 225] ===
+
+`fXML::prepare()` was renamed to fXML::encode()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/7c67d80d Revision 223] ===
+
+`fRecordSet::flagForAssociation()` was renamed to fRecordSet::flagAssociate() 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/095c09ac Revision 222] ===
+
+`fRecordSet::registerCallback()` was renamed to
+fRecordSet::registerMethodCallback()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/dc35e6a8 Revision 221] ===
+
+`fORM::getClassName()` was renamed to fORM::getClass() and
+`fRecordSet::getClassName()` was renamed to fRecordSet::getClass()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/5b39138e Revision 218] ===
+
+`fHTML::checkForBlockLevelHTML()` was renamed to
+fHTML::containsBlockLevelHTML() and `fHTML::createLinks()` was renamed to
+fHTML::makeLinks()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/a4c6fc12 Revision 217] ===
+
+`fCryptography::generateRandomString()` was renamed to
+fCryptography::randomString() 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/f58475fb Revision 216] ===
+
+`fCRUD::createSortableColumn()` was renamed to fCRUD::printSortableColumn() 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/5b552d4a Revision 215] ===
+
+Removed ~fFinancialTransaction and ~fShippingRates. Both were unlike the rest
+of Flourish in that they were tied to the APIs of other services and neither was very comprehensive in terms of the number of services supported.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/e5c99029 Revision 206] ===
+
+Removed `fORMDatabase::initialize()`, you must now construct an fDatabase
+instance and pass it to fORMDatabase::attach()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/0042a0ff Revision 205] ===
+
+`fORMDatabase::prepareBySchema()` was renamed to fORMDatabase::escapeBySchema()
+and `fORMDatabase::prepareByType()` was renamed to fORMDatabase::escapeByType() 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/1207ef87 Revision 204] ===
+
+fDatabase::escape() replaces `fDatabase::escapeBlob()`,
+`fDatabase::escapeBoolean()`, `fDatabase::escapeDate()`,
+`fDatabase::escapeFloat()`, `fDatabase::escapeInteger()`,
+`fDatabase::escapeString()`, `fDatabase::escapeTime()` and
+`fDatabase::escapeTimestamp()`. fDatabase::unescape() replaces
+`fDatabase::unescapeBlob()`, `fDatabase::unescapeBoolean()`,
+`fDatabase::unescapeDate()`, `fDatabase::unescapeFloat()`,
+`fDatabase::unescapeInteger()`, `fDatabase::unescapeString()`,
+`fDatabase::unescapeTime()` and `fDatabase::unescapeTimestamp()`.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/521a55e6 Revision 202] ===
+
+The second and third parameters of fMessaging::create() were swapped to be
+consistent with the other fMessaging methods
+
+=== [https://github.com/flourishlib/flourish-classes/commit/05cd24e5 Revision 201] ===
+
+`fORMColumn::configureDateCreatedColumn()` was moved to
+fORMDate::configureDateCreatedColumn() and
+`fORMColumn::configureDateUpdatedColumn()` was moved to
+fORMDate::configureDateUpdatedColumn()
+
+=== [https://github.com/flourishlib/flourish-classes/commit/37eae733 Revision 195] ===
+
+`fORMColumn::configureMoneyColumn()` was moved to
+fORMMoney::configureMoneyColumn() 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/980845ca Revision 184] ===
+
+`fMoney::multiply()` renamed to fMoney::mul() and `fMoney::subtract()` renamed
+to fMoney::sub() to be consistent with fNumber
+
+=== [https://github.com/flourishlib/flourish-classes/commit/66b4f30e Revision 174] ===
+
+`fORMRelated::constructRecord()` renamed to fORMRelated::createRecord(),
+`fORMRelated::constructRecordSet()` renamed to fORMRelated::buildRecords() 
+
+=== [https://github.com/flourishlib/flourish-classes/commit/90ac2353 Revision 173] ===
+
+Renamed `fRecordSet::create()` to fRecordSet::build(), removed
+`fRecordSet::createEmpty()`, renamed `fRecordSet::createFromObjects()` to
+fRecordSet::buildFromRecords() and added a new first parameter, renamed
+`fRecordSet::createFromPrimaryKeys()` to fRecordSet::buildFromPrimaryKeys(),
+renamed `fRecordSet::createFromSQL()` to fRecordSet::buildFromSQL().
+
+=== [https://github.com/flourishlib/flourish-classes/commit/b942184f Revision 166] ===
+
+fValidation no longer has the methods `fValidation::setEmailFields()`,
+`fValidation::setEmailHeaderFields()` or `fValidation::setRequiredFields()`.
+The various `fValidation::add*()` methods should be used instead.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/0231c739 Revision 144] ===
+
+The method fImage::getInfo() went from being `public` to `protected`.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/418540c0 Revision 127] ===
+
+`fRecordSet::preload{RelatedRecords}()` became
+`fRecordSet::build{RelatedRecords}()`.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/8410513c Revision 125] ===
+
+The `$debug` parameter was removed from all calls to fActiveRecord hook
+callbacks.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/1fd0f7c4 Revision 84] ===
+
+Removed `fRecordSet::preload{RelatedRecords}()`.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/a96e0974 Revision 81] ===
+
+`fInflection` was renamed to fGrammar.
+
+=== [https://github.com/flourishlib/flourish-classes/commit/95cf1f34 Revision 76] ===
+
+fMessaging::show() now behaves differently than it did before.

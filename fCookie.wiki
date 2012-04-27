@@ -1,0 +1,65 @@
+= fCookie =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fCookie Class Documentation]'''
+ - [/api/fCookie API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fCookie.php Source Code]
+
+<<toc bare>>
+)))
+
+The fCookie class helps to make PHP’s cookie API more consistent, while adding the ability to set default parameters and create httponly cookies in older versions of PHP 5.
+
+== Setting Values ==
+
+The static method ::set() is a wrapper around the function [http://php.net/setcookie `setcookie()`], with the addition of optional [#DefaultParameters default parameters] and backwards compatibility for creating [https://www.owasp.org/index.php/HTTPOnly httponly cookies] in PHP 5.1 and earlier. In addition, the expires parameter has been extended to allow any valid [http://php.net/strtotime `strtotime()`] string or a timestamp. Below are some examples of using `set()`:
+
+{{{
+#!php
+// Set a cookie for the current path
+fCookie::set('my_cookie', 'my_value');
+
+// Set a cookie to expire in 1 week
+fCookie::set('my_cookie', 'my_value', '+1 week');
+
+// Set a cookie for the whole site
+fCookie::set('my_cookie', 'my_value', '+1 week', '/');
+
+// Set a cookie for the whole site that expires when the browser is closed
+fCookie::set('my_cookie', 'my_value', 0, '/');
+
+// Set a cookie for all subdomains of example.com
+fCookie::set('my_cookie', 'my_value', '+1 week', '/', '.example.com');
+
+// Ensure that the cookie is only set over a secure connection (https://)
+fCookie::set('my_cookie', 'my_value', '+1 week', '/', '.example.com', TRUE);
+
+// Set the cookie to only be accessible to HTTP (not javascript)
+fCookie::set('my_cookie', 'my_value', '+1 week', '/', '.example.com', TRUE, TRUE);
+}}}
+
+Please note that `set()` follows the same functionality as `setcookie()` when it comes to deleting cookies and storing boolean values. Any value that is set to a cookie that is equal to `FALSE` will cause the cookie to be deleted. This means storing boolean values in a cookie is not recommended since a `FALSE` value will cause the cookie to be erased - instead use `'0'` and `'1'`. Also, setting the expiration date to a time in the past will cause the cookie to be deleted. 
+
+== Getting Values ==
+
+The static method ::get() replaces direct access to the `$_COOKIE` superglobal and adds the ability to specify default values if no cookie is found:
+
+{{{
+#!php
+// Get the value 'default_value' if no cookie of that name exists
+$value = fCookie::get('my_cookie', 'default_value');
+}}}
+
+`get()` will also remove any slashes added by the ini setting `magic_quotes_gpc` being enabled.
+
+== Default Parameters ==
+
+The fCookie class also allows defining default parameters to use for ::set(). Since most sites will often use the same `$path`, `$domain`, `$secure` and `$httponly` parameters for cookies, setting default eliminates unnecessary duplication throughout the code. If a parameter is passed as `NULL` to `set()` and a default is defined, the default will be used. Here are the methods to set default parameters:
+
+|| '''Parameter''' || '''Method'''           ||
+|| `$expires`      || ::setDefaultExpires()  ||
+|| `$path`         || ::setDefaultPath()     ||
+|| `$domain`       || ::setDefaultDomain()   ||
+|| `$secure`       || ::setDefaultSecure()   ||
+|| `$httponly`     || ::setDefaultHTTPOnly() ||

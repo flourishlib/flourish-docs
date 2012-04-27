@@ -1,0 +1,158 @@
+= fResult =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fResult Class Documentation]'''
+ - [/api/fResult API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fResult.php Source Code]
+
+<<toc bare>>
+
+== Database Classes <<toc skip>> ==
+ - fDatabase
+ - fNoRowsException
+ - '''fResult'''
+ - fSQLException
+ - fSQLTranslation
+ - fSQLSchemaTranslation
+ - fSchema
+ - fStatement
+ - fUnbufferedResult
+)))
+
+The fResult class is an iterable result object that is returned when an SQL query is executed. It contains all of the information about a query including any rows that may have been returned. This class uses result buffering to provide more features than fUnbufferedResult, albeit at the cost of extra memory usage proportional to amount of data returned.
+
+== Creation ==
+
+The fResult class can be created by executing the methods fDatabase::query() or fDatabase::translatedQuery().
+
+{{{
+#!php
+// Creation of fResult from a normal query
+$result = $db->query("SELECT * FROM users");
+
+// Creation of an fResult object from a translated query
+$result2 = $db->translatedQuery("SELECT * FROM users LIMIT 5");
+}}}
+
+== Row Format ==
+
+By default when retrieving rows from a result object, they are returned as associative arrays. In the case of Oracle databases, where columns are case-insensitive, the array keys are lowercase.
+
+It is possible to retrieve `stdClass` objects back for each row instead of associative arrays. This is done by calling the method ::asObjects(). The method returns the fResult object, allowing for method chaining:
+
+{{{
+#!php
+// Set the result to return objects
+$res = $db->query("SELECT * FROM users")->asObjects();
+}}}
+
+''If you are looking for objects with more functionality, please see fActiveRecord.''
+
+== Unescaping Data ==
+
+While it is certainly possible to manually unescape data from a result set, one row and column at a time, unescaping the whole result is often much easier. The method ::unescape() accepts an associative array of the column name as the key and the data type as the value. This method should be called before any rows are fetched.
+
+{{{
+#!php
+$result = $db->query("SELECT * FROM users");
+$result->unescape(array(
+    'first_name'       => 'string',
+    'last_name'        => 'string',
+    'is_authenticated' => 'boolean',
+    'last_login'       => 'timestamp'
+));
+
+foreach ($result as $row) {
+    // $row now contains the data in native PHP data types
+}
+}}}
+
+== Iteration ==
+
+The fResult class implements the Iterator interface, which means that you can use the `foreach` construct to loop through all resulting rows. Below is an example of iterating over a result:
+
+{{{
+#!php
+$result = $db->query("SELECT * FROM users");
+
+foreach ($result as $row) {
+    echo $row['name'] . '<br />';
+}
+}}}
+
+If the result did not return any rows, the `foreach` construct will not be looped at all and the execution of the code will continue. If you wish to execute different code if no rows are returned, see the next section about [#Exceptions exceptions].
+
+If you wish to do manual iteration you can use the ::fetchRow() and ::valid() methods as shown below:
+
+{{{
+#!php
+// Iteration using valid() and fetchRow()
+while ($result->valid()) {
+    $row = $result->fetchRow();
+}
+}}}
+
+== Seeking ==
+
+Since an fResult object is a buffered result of a database call, it is possible to seek forwards and backwards in the set. The method ::seek() accepts a single integer parameter `$row` that will change the zero-based pointer in the result set.
+
+{{{
+#!php
+// This would set the current row to be row #3
+$result->seek(2);
+}}}
+
+== Data Retrieval ==
+
+In addition to allowing for iteration over the database query result, there are also two method that allow for simple data retrieval.
+
+The method ::fetchScalar() will return the first value from the first row of a result set. This is useful if it is known that a query will only return a single value. If no rows are returned, a fNoRowsException will be thrown.
+
+{{{
+#!php
+$result = $db->query("SELECT count(*) FROM users");
+$count  = $result->fetchScalar();
+}}}
+
+While `fetchScalar()` allows retrieving data in amounts less than a row, the method ::fetchAllRows() does the opposite by allowing access to all rows at once. The return value of the method is an array of all row arrays.
+
+{{{
+#!php
+$rows = $result->fetchAllRows();
+}}}
+
+== Exceptions ==
+
+As mentioned in the last section, if you iterate through the result and no rows are returned, nothing will happen. If you do need to execute different code when no rows are returned, you will want to call the ::tossIfNoRows() to cause an fNoRowsException to be thrown:
+
+{{{
+#!php
+try {
+    $result = $db->query("SELECT * FROM users");
+    $result->tossIfNoRows();
+    ?>
+    <h1>Users</h1>
+    <?
+    foreach ($result as $row) {
+        echo $row['name'] . '<br />';
+    }
+} catch (fNoRowsException $e) {
+    ?>
+    <p>No users were found</p>
+    <?php
+}
+}}}
+
+In addition to calling `tossIfNoRows()`, an fNoRowsException will be thrown if any Iterator interface methods (such as `current()`, `next()`, etc), `fetchRow()` or `fetchAllRows()` are called on a result object which returned no rows.
+
+== Query Info ==
+
+Along with providing an iterable interface to a query result, the fResult class stores some information about the query including:
+
+|| '''Method'''                || '''Description''' ||
+|| ::countAffectedRows()       || Returns how many rows were affected by a `DELETE`, `INSERT` or `UPDATE` query ||
+|| ::countReturnedRows()       || Returns how many rows were returned by a `SELECT` query ||
+|| ::getAutoIncrementedValue() || Returns the last value generated by an auto-incrementing integer field ||
+|| ::getSQL()                  || Returns the SQL statement executed for this result ||
+|| ::getUntranslatedSQL()      || Returns the SQL from before translation happened - only applicable for results from ::translatedQuery() ||

@@ -1,0 +1,38 @@
+= fSQLException =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fSQLException Class Documentation]'''
+ - [/api/fSQLException API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fSQLException.php Source Code]
+
+== Exception Classes <<toc skip>> ==
+ - fException
+  - fExpectedException
+   - fAuthorizationException
+   - fEmptySetException
+   - fNoRemainingException
+   - fNoRowsException
+   - fNotFoundException
+   - fValidationException
+  - fUnexpectedException
+   - fConnectivityException
+   - fEnvironmentException
+   - fProgrammerException
+   - '''fSQLException'''
+
+== Database Classes <<toc skip>> ==
+ - fDatabase
+ - fNoRowsException
+ - fResult
+ - '''fSQLException'''
+ - fSQLTranslation
+ - fSQLSchemaTranslation
+ - fSchema
+ - fStatement
+ - fUnbufferedResult
+)))
+
+fSQLException is a sub-class of fUnexpectedException that indicates an error has occurred while executing an SQL query. This type of exception will ''not'' be tossed if a query returns no results, but would be tossed if there is a syntax error in the SQL statement. The fNoRowsException would be the type of exception tossed when an SQL query returns no rows.
+
+''This space intentionally left blank''

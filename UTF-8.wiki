@@ -1,0 +1,314 @@
+= UTF-8 in PHP =
+<<toc>>
+
+After some experience with PHP, developers will often start to notice issues
+related to character encoding including "weird" characters and multiple
+characters where there should only be one. Handling character encoding on the
+web usually means support the [http://en.wikipedia.org/wiki/UTF-8 UTF-8]
+character encoding to allow for more than the standard ASCII characters present
+on US keyboard layouts. This page will try to give a brief overview of the
+issues and solutions to using UTF-8 with PHP.
+
+== What is UTF-8? ==
+
+UTF-8 is a [http://en.wikipedia.org/wiki/Character_encoding character encoding],
+or a way to represent characters in a digital manner. It is an encoding of the
+of the [http://en.wikipedia.org/wiki/Unicode Unicode] standard which is closely
+related to the [http://en.wikipedia.org/wiki/Universal_Character_Set Universal
+Character Set] (UCS). There are many different character encodings in the
+Unicode standard, however UTF-8 has a few properties that make it one of the
+best and most popular choices for work on the web.
+
+Unicode contains around 100,000 characters, allowing it to represent a majority
+of the written languages in the world. Other common characters sets in languages
+with Latin characters include [http://en.wikipedia.org/wiki/ISO_8859-1
+ISO-8859-1] and [http://en.wikipedia.org/wiki/Windows-1252 Windows-1252]. Each
+of these character encoding suffers from issues that they only support 256
+different characters, with some common characters not being present (such as
+curly quotes and the Euro symbol in ISO-8859-1).
+
+Since UTF-8 is an encoding that represents the Unicode standard, character
+availability is not an issue. However, to be able to represent so many different
+characters, UTF-8 uses multiple bytes of space for all non-ASCII characters. One
+of the nice properties of UTF-8 is that it is backwards compatible with ASCII
+and the first 128 characters in ISO-8859-1 and Windows-1252. In addition, UTF-8
+is constructed in such a way that it is  possible to tell where character
+boundaries are even if a parser is started in the middle of a character. Related
+to that, it is simple for a UTF-8 string to be verified as correctly encoded.
+
+== PHP and UTF-8 ==
+
+Unfortunately, PHP does not include native support for UTF-8. All of the built-
+in string functions are designed to work with single-byte encodings only. The
+[http://php.net/mbstring mbstring] extension exists to provide string functions
+that are compatible with UTF-8, however it only covers a fraction of the
+standard string functions, and is not installed by default.
+
+In addition to manipulating strings, the character encoding also affects the
+HTML that is returned to browsers and text in databases. The HTML standard
+defines ISO-8859-1 as the default character set to use for HTML when not
+specified, which will cause "weird" characters when UTF-8 content is returned.
+In a similar fashion, both MySQL and PostgreSQL default to using ISO-8859-1 as
+the character encoding unless specified.
+
+MSSQL is much more complicated to work with since the whole server uses a single
+character encoding. In order to store unicode information, the column data types
+must be specified as one of the national character types, `NVARCHAR`, `NCHAR` or
+`NTEXT`. These national columns store data in USC-2 encoding, which contains
+null bytes for the characters in the ASCII range. Unfortunately none of the PHP
+extensions support binary data to be returned in string columns, so the national
+columns require extra work to cast them as binary data and then translated the
+data once in PHP.
+
+== Flourish’s UTF-8 Support ==
+
+Even though PHP has poor UTF-8 support by default, there are ways to work around
+it. Since using UTF-8 is the most universal way to handle characters from other
+languages, Flourish includes code that automatically works the shortcomings of
+PHP and provides UTF-8 support in all situations. While Flourish can solve many
+of the PHP issues with UTF-8, it is also important to understand how UTF-8
+affects the other aspects of building a web site.
+
+=== Database Encoding ===
+
+If a database is being used to store text information, it should be created
+using UTF-8 as the character encoding. This allows the widest range of
+characters to be properly stored, sorted and manipulated by the database.
+
+==== PostgreSQL ====
+
+For PostgreSQL, the database encoding must be specified when the database is
+created. If it is not, the database will have to be dumped and re-imported into
+a new database.
+
+{{{
+#!sql
+CREATE DATABASE database_name ENCODING = 'UTF-8';
+}}}
+
+The fDatabase class will also automatically switch the connection encoding of
+any PostgreSQL database to UTF-8 even if it is not set up with UTF-8 encoding.
+This ensures that all data coming from PostgreSQL is always UTF-8, however there
+can be issues with trying to store UTF-8 characters in a database that does not
+support all of the same characters. Commonly this will be manifested by
+characters being stored as `?`s.
+
+==== MySQL ====
+
+MySQL allows the character encoding for content to be defined when the database
+is created, or when a table is created.
+
+{{{
+#!sql
+-- Setting the default encoding for a database
+CREATE DATABASE example CHARACTER SET 'utf8';
+
+-- Setting the encoding on a table
+CREATE TABLE examples (
+    name VARCHAR(255) PRIMARY KEY
+) CHARACTER SET utf8;
+}}}
+
+However, fDatabase will also automatically switch the connection encoding for
+any MySQL database to UTF-8. This means that all data coming back to PHP will be
+encoded as UTF-8 regardless of the table encoding. There can, however, be issues
+if text containing UTF-8 data is stored in a table that can not handle as many
+characters as UTF-8. Commonly this will be manifested by characters being stored
+as `?`s.
+
+==== MSSQL ====
+
+MSSQL does not support UTF-8 natively like the other database engines, and
+requires that all databases on a server use the same character encoding. Luckily
+it also provides the national (or unicode) character data types `NVARCHAR`,
+`NCHAR` and `NTEXT` that allow storing unicode text.
+
+{{{
+#!sql
+CREATE TABLE examples (
+    name NVARCHAR(255) PRIMARY KEY,
+    description NTEXT NOT NULL
+);
+}}}
+
+''If national columns are not used and the data you insert into the database can
+''not be represented by the default database encoding, the characters will be
+''stored as `?`s.
+
+There can be difficulties in dealing with such data types in PHP, however the
+fDatabase::translatedQuery() method has been developed in such a way that all
+data from national columns will be returned as UTF-8.
+
+{{{
+#!php
+// This will ensure all data coming out of MSSQL is properly converted to UTF-8
+$result = $db->translatedQuery("SELECT * FROM examples WHERE name = %s", $name);
+}}}
+
+When inserting strings containing UTF-8 into a MSSQL database, the method
+fDatabase::escape() should be used since it will detect extended characters and
+escape them properly.
+
+{{{
+#!php
+// This will ensure all data going into MSSQL is properly stored in NCHAR, NVARCHAR, NTEXT columns
+$result = $db->translatedQuery(
+    "INSERT INTO examples (name, description) VALUES (%s, %s)",
+    $name
+    $description
+);
+}}}
+
+If you are using a linux or BSD server, you are probably access SQL Server
+through FreeTDS. The following configuration options should be set in your
+`freetds.conf` to ensure that everything works properly. ''The encoding
+(`CP1252`) may need to be changed if the Windows machine the server is running
+on uses a primary language other than English.''
+
+{{{
+# This is the version of the protocol to use for SQL Server 2000
+# and newer. Versions less than this may cause weird database bugs.
+tds version = 8.0
+
+# By default FreeTDS uses ISO-8859-1 which will turn some characters
+# into ?s. CP1252 (or Windows-1252) is usually the character encoding
+# used by SQL Server for English installs
+client charset = CP1252
+}}}
+
+Depending on what linux distribution or flavor of BSD you are using, the
+`freetds.conf` may be in a few different directories, including:
+
+ - `/etc/`
+ - `/etc/freetds/`
+ - `/usr/local/etc/`
+ - `/usr/local/etc/freetds/`
+
+It is also possible your operating system may not install a default
+`freetds.conf`, but it may provide a `freetds.conf.dist` or something similar.
+
+==== SQLite ====
+
+SQLite uses UTF-8 for all text storage by default, so no special configuration
+is needed.
+
+==== Oracle ====
+
+Like with the other databases, Oracle has both a database encoding and a client
+encoding, however, unlike the other databases, the client encoding can not be
+set at connection time.
+
+In order to full support UTF-8, the Oracle database should be installed with the
+`AL32UTF8` encoding for version 9i+ and `UTF8` for version 8. ''If you are
+installing [http://www.oracle.com/technology/products/database/xe/index.html
+Oracle 10g XE], be sure to get the `universal` version that support multi-byte
+encodings.''
+
+On the client side, the character encoding is controlled by the `NLS_LANG`
+environmental variable. For US-English installs, this should probably be set to
+`AMERICAN_AMERICA.AL32UTF8`. In addition to the `NLS_LANG` environmental
+variable, the Oracle PHP drivers will also need the `ORACLE_HOME` environmental
+variable set. [http://download.oracle.com/docs/cd/B25329_01/doc/admin.102/b25107
+/connecting.htm#sthref81 Examples for Linux].
+
+==== DB2 ====
+
+DB2 can be instructed to store UTF-8 as the database default, or on individual
+tables. UTF-8 is used whenever unicode is specified. To specified unicode as the
+default for a database, add the `USING CODESET` option to the `CREATE DATABASE`
+statement:
+
+{{{
+#!sql
+CREATE DATABASE example USING CODESET UTF-8 TERRITORY US;
+}}}
+
+The `TERRITORY` should be set to an appropriate locale for your data.
+
+It is also possible to set the `CCSID UNICODE` on individual tables with
+`CREATE TABLE`:
+
+{{{
+#!sql
+CREATE TABLE example (
+    -- ....
+) CCSID UNICODE;
+}}}
+
+In addition to setting up your server for UTF-8 database, it is required to set
+the client to use UTF-8 also. Unfortunately this can not be controlled via SQL
+over the database connection like other database, but must be set as an
+environmental variable. In a method appropriate for your OS, set the
+`DB2CODEPAGE` environmental variable to `1208`, which represents UTF-8.
+
+For linux with a sh/bash shell, this can be accomplished via:
+
+{{{
+export DB2CODEPAGE=1208
+}}}
+
+For Windows, this can be set in the Environmental Variables panel under ''My
+Computer > Properties > Advanced > Environmental Variables''.
+
+=== HTML Encoding ===
+
+When delivering HTML to browsers, it is important to include the proper
+character encoding information so that the browser can properly display the
+characters. The method fHTML::sendHeader() sets the proper `Content-type` header
+for UTF-8 HTML. This method should be called for every page that returns HTML,
+and should be called before any output is created. Consequently, it will often
+be called in an init or bootstrapping script:
+
+{{{
+#!php
+fHTML::sendHeader();
+}}}
+
+It is also good practice to include an HTML `meta` tag specifying the character
+set for when HTML is displayed from the filesystem instead of a web server.
+
+{{{
+#!html
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+        …
+}}}
+
+=== Request Data ===
+
+As long as the HTML encoding is set to UTF-8, all browsers should obey this
+setting and submit request data encoded as UTF-8. When retrieving information
+from `GET` and `POST` requests, the class fRequest ensures that all values
+coming in are valid UTF-8 strings, and cleans out those that are not.
+
+{{{
+#!php
+// This value will be proper
+$name = fRequest::get('name');
+}}}
+
+=== String Manipulation ===
+
+The class fUTF8 is a static class that provides all of the same functionality as
+the normal PHP string functions, but in a way that is compatible with the multi-
+byte nature of UTF-8. The [/docs/fUTF8 class documentation] includes a list of
+all of the PHP string functions and their equivalent methods in fUTF8.
+
+== Importing Data ==
+
+While Flourish is built to ensure that all data coming in through normal web
+interactions is clean and valid UTF-8, it is necessary to manually convert data
+coming from an old database or text files. The [http://php.net/iconv iconv] PHP
+extension provides functionality to convert text stored in another encoding to
+UTF-8 using a simple function call.
+
+When importing data from an old database, as long as the fDatabase class is used
+to connect to the old DB, all data should be automatically converted from the
+old encoding to UTF-8 on-the-fly. This is accomplished by the fact that
+fDatabase sets the connection encoding to UTF-8 whenever connecting to a
+database. This, does not, however mean that fDatabase will work seamlessly with
+a non UTF-8 database. Most of the default character sets for databases only
+support a subset of the UTF-8 characters, making conversion to UTF-8 fine, but
+conversion back nearly impossible.

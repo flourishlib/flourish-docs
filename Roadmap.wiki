@@ -1,0 +1,18 @@
+= Roadmap =
+
+This page outlines the currently planned changes for Flourish. Right now the
+project is in beta, with the development focus being on stabilizing the API.
+Most of the remaining work before it becomes stable is related to:
+
+ - changing existing APIs to be more user friendly
+ - removing functionality that deals too much with HTML generation, or making
+   it more flexible
+ - refactoring existing code into different classes
+
+The current issues include many of
+the remaining items, but not all tickets will be completed by the time the
+project becomes stable. At the current pace I expect the stable release to
+happen by late 2012.
+
+''Please note that Flourish has undergone a good deal of real-world testing,
+and can generally be considered production ready.''

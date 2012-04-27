@@ -1,0 +1,344 @@
+= fNumber =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fNumber Class Documentation]'''
+ - [/api/fNumber API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fNumber.php Source Code]
+
+<<toc bare>>
+
+== Value Objects <<toc skip>> ==
+ - fDate
+ - fMoney
+ - '''fNumber'''
+ - fTime
+ - fTimestamp
+)))
+
+The fNumber class is a [/docs/ValueObjects value object] to represent large integers and arbitrary precision decimal values. The fNumber class is essential when dealing with calculations that must be precise, such as monetary value (consequently the fMoney class is built on top of fNumber). It supplies the same math functionality that is built into PHP, minus the trigonometric operations.
+
+== Instantiation ==
+
+An fNumber object requires just a single parameter for the constructor, the value to represent. It can be a string, an object with a `__toString()` method, or an integer. If the value being represented is too large to store in an integer, the integer value should be enter via a string to prevent data loss. Also, float values should never be used since they have an inherent loss of precision that this class is designed to overcome.
+
+{{{
+#!php
+$five           = new fNumber(5);
+$four_point_two = new fNumber('4.2');
+$zero_point_one = new fNumber('0.1');
+}}}
+
+There is a second optional parameter to the constructor that allows specifying the precision of the number. If no precision is specified, the precision of the value is used.
+
+{{{
+#!php
+// Represents 1.000
+$one = new fNumber(1, 3);
+}}}
+
+== Arithmetic ==
+
+Basic arithmetic is performed using the method ::add(), ::sub(), ::mul() and ::div(). Since the fNumber class is a value object, all operations return a new fNumber object instead of modifying the existing one. Also, all methods accept any valid number representation including strings, fNumber objects and integers.
+
+The returned fNumber object will have the same precision as the object being called unless the optional parameter `$scale` is included.
+
+=== Addition ===
+
+Addition is performed by calling the method ::add() and providing an `$addend`.
+
+{{{
+#!php
+// Addition using different addend number forms
+$six              = $five->add(1);
+$six              = $five->add($one);
+$eight_point_four = $four_point_two->add('4.2');
+
+// Without scale the 0.1 is lost
+$five             = $five->add('0.1');
+
+// By specifying a scale of 1 we retain the 0.1
+$five_point_one   = $five->add('0.1', 1); 
+}}}
+
+=== Subtraction ===
+
+Subtraction is performed by calling the method ::sub() and providing a `$subtrahend`.
+
+{{{
+#!php
+// Basic subtraction
+$two  = $five->sub(3);
+
+// Since $five has a scale of zero, the result is still five
+$five = $five->sub('0.3');
+
+// All arithmetic methods support positive and negative numbers
+$five_point_three = $five->sub('-0.3', 1);
+}}}
+
+=== Multiplication ===
+
+Multiplication is performed by calling the method ::mul() and providing a `$multiplicand`.
+
+{{{
+#!php
+// Simple multiplication
+$ten = $five->mul(2);
+
+// A comparison of multiplication with 0 and 1 scale
+$twelve            = $five->mul('2.5');
+$twelve_point_five = $five->mul('2.5', 1);
+}}}
+
+=== Division ===
+
+Division is performed by calling the method ::div() and providing a `$divisor`.
+
+{{{
+#!php
+// Basic division
+$two = $five->div(2);
+
+// Division with a specific scale
+$two_point_five = $five->div(2, 1);
+}}}
+
+=== Modulus ===
+
+The remainder of integer division can be calculated by the method ::mod() and the remainder of fractional division can be calculated by the method ::fmod(). 
+
+The `mod()` method will convert the current number to an integer and then divide it by the single parameter, `$divisor`, that is passed to the method. The `$divisor` is also converted to an integer before the calculation is performed.
+
+{{{
+#!php
+// Simple integer division
+$one = $three->mod('2');
+
+// The number and divisor are both converted to integers first
+$one = $three_point_two->mod('2.1');
+}}}
+
+The `fmod()` method allows dividing a fractional number by another fractional number, returning the remainder. The first parameter is the `$divisor` to use, while a second optional parameter, `$scale`, allows specifying the scale of the remainder that is being returned.
+
+{{{
+#!php
+$zero_point_three    = $four_point_seven->fmod('1.1');
+$one_point_four_zero = $four_point_four->fmod('1.5', 2);
+}}}
+
+== Powers and Roots ==
+
+The fNumber class provides functionality to calculate both square roots and integer powers via the ::sqrt() and ::pow() methods.
+
+The `sqrt()` method accepts a single optional parameter, the `$scale` of the result.
+
+{{{
+#!php
+$three             = $nine->sqrt();
+$three_point_eight = $fifteen->sqrt(1);
+}}}
+
+The `pow()` method accepts two parameters, the required `$exponent` to raise the number to, and the optional `$scale` for the resulting number.
+
+{{{
+#!php
+$twenty_five        = $five->pow(2);
+$nine_point_two_six = $two_point_one->pow(3, 2);
+}}}
+
+Under certain situations, especially when dealing with cryptography, it is necessary to raise integers to large powers and then calculate the remainder of the division of that product by another integer. Normal calculation by raising the original number to a large power and then dividing to find the remainder often takes far too much computation. There are, however, some mathematical shortcuts to make such calculations significantly faster.
+
+The ::powmod() method allows calculating the remainder of the original number raised to an `$exponent` and then divided by the `$modulus`.
+
+{{{
+$four_fourty_five = $four->powmod('13', '497');
+}}}
+
+== Comparison ==
+
+The fNumber class include comparison methods for testing equality - ::eq(), less than - ::lt(), less than or equal - ::lte(), greater than - ::gt() and greater than or equal - ::gte(). Each method accepts two parameters, the `$number` to compare to and an optional `$scale` to use for comparison.
+
+The `$number` to compare to may be any valid fNumber object, string or integer. The `$scale` parameter sets how many digits after the decimal point to use during comparison. If no scale is specified, the highest scale of the two numbers will be used.
+
+{{{
+#!php
+$true  = $five->eq(5);
+$false = $five->eq('5.1');
+$true  = $five->eq('5.1', 0);
+
+$true  = $five->lt($six);
+$true  = $five->lte('5.00', 4);
+
+$false = $five->gt($six, 0);
+$false = $five->gte('5.1', 1);
+}}}
+
+== Formatting ==
+
+There are two options to format fNumber objects, either ::__toString() or ::format(). The `format()` method will include thousands separators in the returned value, while `__toString()` will not. The inherent scale of the number will be used when displaying the value. To change the scale, use the ::trunc() or ::round() method first.
+
+{{{
+#!php
+echo $one_thousand_two_hundred->format() . "\n";
+echo $one_thousand_two_hundred->__toString() . "\n";
+
+echo $negative_five_point_two->format() . "\n";
+echo $negative_five_point_two->__toString() . "\n";
+echo $negative_five_point_two->trunc()->__toString();
+}}}
+
+would output the following
+
+{{{
+1,200
+1200
+-5.2
+-5.2
+-5
+}}}
+
+If the parameter `$remove_zero_fraction` is set to `TRUE` and the value has a fraction that is just zeros, the resulting output will not contain a decimal point or a fraction.
+
+{{{
+#!php
+// This will print: 5
+$five = new fNumber('5.0');
+echo $five->format(TRUE);
+
+$two_fifty_three = new fNumber('2.53');
+// This will print: 2.53
+echo $two_fifty_three->format(TRUE);
+}}}
+
+== Precision Operations ==
+
+The precision of an fNumber can be modified by using the ::ceil(), ::floor(), ::round() and ::trunc() methods.
+
+The `ceil()` method performs a ceiling operation, rounding up to the next highest integer.
+
+{{{
+#!php
+$six = $five_point_two->ceil();
+}}}
+
+The `floor()` method preforms a floor operation, rounding down to the next lowest integer.
+
+{{{
+#!php
+$negative_six = $negative_five_point_two->floor();
+}}}
+
+The `trunc()` method changes the scale of the number to 0 without performing any rounding.
+
+{{{
+#!php
+$five = $five_point_two->trunc();
+}}}
+
+The `round()` method allows rounding a number to a specified number of decimal places, using the `$scale` parameter. It is even possible to round left of the decimal point using negative scales. Rounding is done using the common method, that is when the digit one place beyond the `$scale` is 5 or greater the `$scale` digit is increased vy 1, otherwise the digit is left the same.
+
+{{{
+#!php
+// Rounding positive numbers
+$five = $five_point_two->round();
+$six  = $five_point_five->round();
+
+// Rounding negative numbers
+$negative_two = $negative_one_point_six->round();
+$negative_one = $negative_one_point_one->round();
+
+// Rounding to a specific scale
+$one_point_three = $one_point_three_three->round(1);
+$ten             = $thirteen->round(-1);
+}}}
+
+== Sign Operations ==
+
+The fNumber class can calculate the absolute value of a number via the ::abs() method, the negated value via the ::neg() method and can return the sign of a number via the ::sign() method.
+
+Here are a few basic example of using the `abs()` and `neg()` methods:
+
+{{{
+#!php
+// Calculating the absolute value
+$five = $five->abs();
+$five = $negative_five->abs();
+
+// Negating numbers
+$negative_five = $five->neg();
+$five          = $negative_five->neg();
+}}}
+
+The `sign()` method will return `-1` if the number is negative, `0` if the number is zero and `1` if the number is positive.
+
+{{{
+#!php
+$true  = $five->sign() == 1;
+$true  = $zero->sign() == 0;
+$false = $zero->sign() == -1;
+$true  = $negative_one->sign() == -1;
+}}}
+
+== Pi ==
+
+The value of pi can be obtained up to a scale of 500 by calling the static method ::pi() and providing the desired `$scale`.
+
+{{{
+#!php
+// 3.14
+$pi = fNumber::pi(2);
+
+// 3.1415926535897932384626433
+$pi = fNumber::pi(25);
+}}}
+
+== Base Conversion ==
+
+For some calculations, representing numbers in a base other than base 10 is necessary. The static method ::baseConvert() allow converting integers between any two bases ranging from base 2 (binary) to base 16 (hexadecimal). Three parameters are required, the integer to convert, the base being converted from and the base being converted to.
+
+{{{
+#!php
+echo fNumber::baseConvert($five, 10, 2) . "\n";
+echo fNumber::baseConvert('10110100110', 2, 16) . "\n";
+echo fNumber::baseConvert('10110100110', 2, 8);
+}}}
+
+would output the following
+
+{{{
+101
+5A6
+2646
+}}}
+
+== Localization ==
+
+When formatting numbers in different locales, it will often be the case that the thousands separator and decimal point are different than the one in the United States. The methods ::registerFormatCallback() and ::registerUnformatCallback() allow for both creating a different formatting and also removing such formatting when creating a new fNumber object.
+
+{{{
+#!php
+// Function to format numbers for Italian
+function italian_number_format($number, $remove_zero_fraction=FALSE)
+{
+    $parts = explode('.', $number);
+    
+    $integer  = $parts[0];
+    $fraction = (isset($parts[1])) ? ',' . $parts[1] : '';
+    
+    if ($remove_zero_fraction && rtrim($fraction, ',0') === '') {
+        $fraction = '';
+    }
+    
+    return number_format($integer, 0, ',', '.') . $fraction;
+}
+
+// Function to change a formatted to a plain number
+function italian_number_unformat($value)
+{
+    return str_replace(array('.', ','), array('', '.'), $value);
+}
+
+fNumber::registerFormatCallback('italian_number_format');
+fNumber::registerUnformatCallback('italian_number_unformat');
+}}}

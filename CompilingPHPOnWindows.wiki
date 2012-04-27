@@ -1,0 +1,47 @@
+= Compiling PHP On Windows =
+<<toc>>
+
+''The following instructions were last updated in June 2011, and may be out of
+date.''
+
+The following instructions are meant to help provide a guide for getting
+started with compiling PHP, or PHP extensions, on Windows. If you are looking
+for a non-standard PHP extension, Pierre Joye maintains builds of many at
+http://www.php.net/~pierre/. The official Windows builds are available at
+http://windows.php.net/download/ and include many of the most common
+extensions.
+
+Many extensions will mention vc6, vc9, x86, x64, nts or ts in their filenames.
+The official builds of PHP 5.3 are compiled using Microsoft Visual C++ 2008
+(v9.0), also known as VC9. PHP 5.2 is compiled using Microsoft Visual C++ 6.0,
+also known as VC6. Currently there is no official 64-bit (x64) version of PHP
+for Windows, so all official build are 32-bit, also referred to as x86. Windows
+PHP builds are either thread-safe (TS), or non-thread-safe (NTS). Extensions
+need to be compiled with the same compiler (VC6 or VC9) for the same
+architecture (x86 or x64) and with the same threading configuration (ts or nts)
+as the main PHP install.
+
+== PHP 5.3 ==
+
+To build PHP 5.3 and compile extensions that will be compatible with the
+official releases, you will need the following software installed. Please be
+sure to install the Windows SDK '''BEFORE''' Visual Studio or else you will run
+into issues with libraries being overwritten by older versions.
+
+Please be sure to use the exact versions listen here for compatibility.
+
+ - [http://www.microsoft.com/downloads/en/details.aspx?familyid=e6e1c3df-a74f-4207-8586-711ebe331cdc&displaylang=en Windows SDK v6.1]
+ - [http://download.microsoft.com/download/A/5/4/A54BADB6-9C3F-478D-8657-93B3FC9FE62D/vcsetup.exe Microsoft Visual C++ 2008 Express Edition] (free)
+ - [http://windows.php.net/download/ PHP Source Code]
+ - [http://windows.php.net/downloads/php-sdk/ PHP Compilation Dependencies and SDK Build Tools]
+
+== PHP 5.2 ==
+
+To build PHP 5.2 and compile extensions that will be compatible with the official releases, you will need the following to be installed. Unfortunately there is no free version of Visual C++ 6.0 and the Windows SDK is no longer officially distributed.
+
+ - [http://www.microsoft.com/msdownload/platformsdk/sdkupdate/psdk-full.htm Windows Platform SDK February 2003 Edition]
+ - Microsoft Visual C++ 6.0 (commercial only)
+ - [http://www.microsoft.com/downloads/en/details.aspx?familyid=a8494edb-2e89-4676-a16a-5c5477cb9713&displaylang=en Microsoft Visual C++ 6.0 SP2] (free update)
+ - [http://windows.php.net/download/ PHP Source Code]
+ - [http://deioncube.in/files/Extensions/Tools/LibsVc6/ PHP Compilation Dependencies]
+ - ''More to come...''

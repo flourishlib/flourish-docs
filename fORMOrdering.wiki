@@ -1,0 +1,144 @@
+= fORMOrdering =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fORMOrdering Class Documentation]'''
+ - [/api/fORMOrdering API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fORMOrdering.php Source Code]
+
+<<toc bare>>
+
+== ORM Classes <<toc skip>> ==
+ - fActiveRecord
+ - fRecordSet
+
+ - fORM
+ - fORMColumn
+ - fORMDatabase
+ - fORMDate
+ - fORMFile
+ - fORMJSON
+ - fORMMoney
+ - '''fORMOrdering'''
+ - fORMRelated
+ - fORMSchema
+ - fORMValidation
+)))
+
+The fORMOrdering class is an ORM plugin to provide record ordering functionality for fActiveRecord classes.
+
+An ordering column is used to provide arbitrary ordering for fActiveRecord objects. For a column to be an ordering column, it must be an integer column that allows for negative numbers and is part of a `UNIQUE` constraint. While an ordering value will never be negative, negative integers are used in the process of re-arranging values.
+
+If the column is the only column in the `UNIQUE` constraint, all records in the table will be part of one ordered set. If the column is part of a multi-column `UNIQUE` constraint, all records that have the same values for each column ''other'' than the ordering will be part of an ordered set.
+
+== Basic Ordering (Single-Column) ==
+
+To configure a column to be treated as an ordering column, the static method ::configureOrderingColumn() must be called with the `$class` to configure and the `$column` to set as an ordering column.
+
+{{{
+#!php
+class Photo extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMOrdering::configureOrderingColumn($this, 'display_order');
+    ]
+}
+}}}
+
+Once a column has been set to be an ordering column, any new records inserted into the set will be automatically added at the end, unless a specific value is set for the ordering column.
+
+{{{
+#!php
+// Assuming there are no other photos, this photo would become #1
+$photo = new Photo();
+$photo->store();
+
+// This photo would be come number 2
+$photo2 = new Photo();
+$photo2->store();
+}}}
+
+Whenever the value for the ordering column is changed, the records around it will be adjusted so there is always a continuous sequence of order numbers. 
+
+{{{
+#!php
+// This photo would become number 2 and $photo2 would change to number 3
+$photo3 = new Photo();
+$photo3->setDisplayOrder(2);
+$photo3->store();
+}}}
+
+== Advanced Ordering (Multi-Column) ==
+
+Below is an example of a multi-column `UNIQUE` constraint and the dynamics related to it. Each photo is part of a photo gallery, thus it is desired to have a separate ordering for each gallery. Flourish will automatically detect that the `display_order` column is in a `UNIQUE` constraint with `photo_gallery_id` and will order each photo gallery separately.
+
+{{{
+#!sql
+CREATE TABLE photo_galleries (
+    name VARCHAR(200) PRIMARY KEY
+);
+
+CREATE TABLE photos (
+    photo_id SERIAL PRIMARY KEY,
+    photo VARCHAR(255) NOT NULL,
+    caption VARCHAR(255) NOT NULL DEFAULT '',
+    display_order INTEGER NOT NULL,
+    photo_gallery VARCHAR(200) NOT NULL REFERENCES photo_galleries(name) ON DELETE CASCADE ON UPDATE CASCADE,
+    UNIQUE(photo_gallery_id, display_order)
+);
+}}}
+
+{{{
+#!php
+class Photo extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMOrdering::configureOrderingColumn($this, 'display_order');
+    ]
+}
+}}}
+
+The following example shows how photos will be ordered in their respective galleries.
+
+{{{
+#!php
+// Create the galleries to use
+$photo_gallery = new PhotoGallery();
+$photo_gallery->setName('Gallery 1');
+$photo_gallery->store();
+
+$photo_gallery2 = new PhotoGallery();
+$photo_gallery2->setName('Gallery 2');
+$photo_gallery2->store();
+
+// This photo will have its display order set to 1
+$photo = new Photo();
+$photo->setPhotoGallery('Gallery 1');
+$photo->setPhoto($photo_path);
+$photo->store();
+
+// This photo will have its display order set to 1 also, but as part of Gallery 2
+$photo2 = new Photo();
+$photo2->setPhotoGallery('Gallery 2');
+$photo2->setPhoto($photo_path);
+$photo2->store();
+
+// This photo will have its display order set to 2
+$photo3 = new Photo();
+$photo3->setPhotoGallery('Gallery 1');
+$photo3->setPhoto($photo_path);
+$photo3->store();
+}}}
+
+If the gallery was changed for `$photo` to `Gallery 2`, it would be moved out of the display order of `Gallery 1` and added to the end of the display order for `Gallery 2`.
+
+{{{
+#!php
+$photo->setPhotoGallery('Gallery 2');
+$photo->store();
+
+// This would output 2 since it was added at the end of Gallery 2
+echo $photo->getDisplayOrder();
+}}}

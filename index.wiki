@@ -1,0 +1,150 @@
+= Documentation =
+<<css mode="next" class="sidebar">>
+(((
+== Downloadable ==
+Grab a '''[/offline_docs single HTML file]''' containing all class and API docs, plus applicable general topics
+)))
+
+For those just beginning with Flourish, <<css mode="next" class="important">>[/docs/GettingStarted getting started] and <<css mode="next" class="important">>[/docs/HowDoI how do I…?] provide a gentle introduction. The [#ClassDocumentation class documentation] provides in-depth information about each class, along with links to related functionality, the API and source code.
+
+The [#GeneralDocumentation general documentation] supplements the class documentation and covers topics that touch on multiple parts of the library, or apply to PHP in general.
+
+== Class Documentation ==
+
+<<css mode="next" class="class_docs first">>
+(((
+=== Database ===
+ - [/docs/fDatabase fDatabase]                                [/api/fDatabase API],                [https://github.com/flourishlib/flourish-classes/blob/master/fDatabase.php Code]
+ - [/docs/fResult fResult]                                    [/api/fResult API],                  [https://github.com/flourishlib/flourish-classes/blob/master/fResult.php Code]
+ - [/docs/fSQLTranslation fSQLTranslation]                    [/api/fSQLTranslation API],          [https://github.com/flourishlib/flourish-classes/blob/master/fSQLTranslation.php Code]
+ - [/docs/fSQLSchemaTranslation fSQLSchemaTranslation]        [/api/fSQLSchemaTranslation API],    [https://github.com/flourishlib/flourish-classes/blob/master/fSQLSchemaTranslation.php Code]
+ - [/docs/fSchema fSchema]                                    [/api/fSchema API],                  [https://github.com/flourishlib/flourish-classes/blob/master/fSchema.php Code]
+ - [/docs/fStatement fStatement]                              [/api/fStatement API],               [https://github.com/flourishlib/flourish-classes/blob/master/fStatement.php Code]
+ - [/docs/fUnbufferedResult fUnbufferedResult]                [/api/fUnbufferedResult API],        [https://github.com/flourishlib/flourish-classes/blob/master/fUnbufferedResult.php Code]
+
+=== ORM ===
+ - [/docs/fActiveRecord fActiveRecord]                        [/api/fActiveRecord API],            [https://github.com/flourishlib/flourish-classes/blob/master/fActiveRecord.php Code]
+ - [/docs/fRecordSet fRecordSet]                              [/api/fRecordSet API],               [https://github.com/flourishlib/flourish-classes/blob/master/fRecordSet.php Code]
+
+ - [/docs/fORM fORM]                                          [/api/fORM API],                     [https://github.com/flourishlib/flourish-classes/blob/master/fORM.php Code]
+ - [/docs/fORMColumn fORMColumn]                              [/api/fORMColumn API],               [https://github.com/flourishlib/flourish-classes/blob/master/fORMColumn.php Code]
+ - [/docs/fORMDatabase fORMDatabase]                          [/api/fORMDatabase API],             [https://github.com/flourishlib/flourish-classes/blob/master/fORMDatabase.php Code]
+ - [/docs/fORMDate fORMDate]                                  [/api/fORMDate API],                 [https://github.com/flourishlib/flourish-classes/blob/master/fORMDate.php Code]
+ - [/docs/fORMFile fORMFile]                                  [/api/fORMFile API],                 [https://github.com/flourishlib/flourish-classes/blob/master/fORMFile.php Code]
+ - [/docs/fORMJSON fORMJSON]                                  [/api/fORMJSON API],                 [https://github.com/flourishlib/flourish-classes/blob/master/fORMJSON.php Code]
+ - [/docs/fORMMoney fORMMoney]                                [/api/fORMMoney API],                [https://github.com/flourishlib/flourish-classes/blob/master/fORMMoney.php Code]
+ - [/docs/fORMOrdering fORMOrdering]                          [/api/fORMOrdering API],             [https://github.com/flourishlib/flourish-classes/blob/master/fORMOrdering.php Code]
+ - [/docs/fORMRelated fORMRelated]                            [/api/fORMRelated API],              [https://github.com/flourishlib/flourish-classes/blob/master/fORMRelated.php Code]
+ - [/docs/fORMSchema fORMSchema]                              [/api/fORMSchema API],               [https://github.com/flourishlib/flourish-classes/blob/master/fORMSchema.php Code]
+ - [/docs/fORMValidation fORMValidation]                      [/api/fORMValidation API],           [https://github.com/flourishlib/flourish-classes/blob/master/fORMValidation.php Code]
+
+=== Filesystem ===
+ - [/docs/fFilesystem fFilesystem]                            [/api/fFilesystem API],              [https://github.com/flourishlib/flourish-classes/blob/master/fFilesystem.php Code]
+ - [/docs/fFile fFile]                                        [/api/fFile API],                    [https://github.com/flourishlib/flourish-classes/blob/master/fFile.php Code]
+  - [/docs/fImage fImage]                                     [/api/fImage API],                   [https://github.com/flourishlib/flourish-classes/blob/master/fImage.php Code]
+ - [/docs/fDirectory fDirectory]                              [/api/fDirectory API],               [https://github.com/flourishlib/flourish-classes/blob/master/fDirectory.php Code]
+)))
+
+<<css mode="next" class="class_docs second">>
+(((
+=== Request ===
+ - [/docs/fCookie fCookie]                                    [/api/fCookie API],                  [https://github.com/flourishlib/flourish-classes/blob/master/fCookie.php Code]
+ - [/docs/fRequest fRequest]                                  [/api/fRequest API],                 [https://github.com/flourishlib/flourish-classes/blob/master/fRequest.php Code]
+ - [/docs/fUpload fUpload]                                    [/api/fUpload API],                  [https://github.com/flourishlib/flourish-classes/blob/master/fUpload.php Code]
+ - [/docs/fURL fURL]                                          [/api/fURL API],                     [https://github.com/flourishlib/flourish-classes/blob/master/fURL.php Code]
+ - [/docs/fValidation fValidation]                            [/api/fValidation API],              [https://github.com/flourishlib/flourish-classes/blob/master/fValidation.php Code]
+
+=== Session ===
+ - [/docs/fAuthorization fAuthorization]                      [/api/fAuthorization API],           [https://github.com/flourishlib/flourish-classes/blob/master/fAuthorization.php Code]
+ - [/docs/fMessaging fMessaging]                              [/api/fMessaging API],               [https://github.com/flourishlib/flourish-classes/blob/master/fMessaging.php Code]
+ - [/docs/fSession fSession]                                  [/api/fSession API],                 [https://github.com/flourishlib/flourish-classes/blob/master/fSession.php Code]
+
+=== Response ===
+ - [/docs/fBuffer fBuffer]                                    [/api/fBuffer API],                  [https://github.com/flourishlib/flourish-classes/blob/master/fBuffer.php Code]
+ - [/docs/fCRUD fCRUD]                                        [/api/fCRUD API],                    [https://github.com/flourishlib/flourish-classes/blob/master/fCRUD.php Code]
+ - [/docs/fHTML fHTML]                                        [/api/fHTML API],                    [https://github.com/flourishlib/flourish-classes/blob/master/fHTML.php Code]
+ - [/docs/fJSON fJSON]                                        [/api/fJSON API],                    [https://github.com/flourishlib/flourish-classes/blob/master/fJSON.php Code]
+ - [/docs/fTemplating fTemplating]                            [/api/fTemplating API],              [https://github.com/flourishlib/flourish-classes/blob/master/fTemplating.php Code]
+
+=== Utilities ===
+ - [/docs/fCache fCache]                                      [/api/fCache API],                   [https://github.com/flourishlib/flourish-classes/blob/master/fCache.php Code]
+ - [/docs/fCryptography fCryptography]                        [/api/fCryptography API],            [https://github.com/flourishlib/flourish-classes/blob/master/fCryptography.php Code]
+ - [/docs/fGrammar fGrammar]                                  [/api/fGrammar API],                 [https://github.com/flourishlib/flourish-classes/blob/master/fGrammar.php Code]
+ - [/docs/fText fText]                                        [/api/fText API],                    [https://github.com/flourishlib/flourish-classes/blob/master/fText.php Code]
+ - [/docs/fXML fXML]                                          [/api/fXML API],                     [https://github.com/flourishlib/flourish-classes/blob/master/fXML.php Code]
+)))
+
+<<css mode="next" class="class_docs third">>
+(((
+=== Email ===
+ - [/docs/fEmail fEmail]                                      [/api/fEmail API],                   [https://github.com/flourishlib/flourish-classes/blob/master/fEmail.php Code]
+ - [/docs/fMailbox fMailbox]                                  [/api/fMailbox API],                 [https://github.com/flourishlib/flourish-classes/blob/master/fMailbox.php Code]
+ - [/docs/fSMTP fSMTP]                                        [/api/fSMTP API],                    [https://github.com/flourishlib/flourish-classes/blob/master/fSMTP.php Code]
+
+=== Date/Time ===
+ - [/docs/fDate fDate]                                        [/api/fDate API],                    [https://github.com/flourishlib/flourish-classes/blob/master/fDate.php Code]
+ - [/docs/fTime fTime]                                        [/api/fTime API],                    [https://github.com/flourishlib/flourish-classes/blob/master/fTime.php Code]
+ - [/docs/fTimestamp fTimestamp]                              [/api/fTimestamp API],               [https://github.com/flourishlib/flourish-classes/blob/master/fTimestamp.php Code]
+
+=== Numbers/Strings ===
+ - [/docs/fMoney fMoney]                                      [/api/fMoney API],                   [https://github.com/flourishlib/flourish-classes/blob/master/fMoney.php Code]
+ - [/docs/fNumber fNumber]                                    [/api/fNumber API],                  [https://github.com/flourishlib/flourish-classes/blob/master/fNumber.php Code]
+ - [/docs/fUTF8 fUTF8]                                        [/api/fUTF8 API],                    [https://github.com/flourishlib/flourish-classes/blob/master/fUTF8.php Code]
+
+=== Errors/Exceptions ===
+ - [/docs/fCore fCore]                                        [/api/fCore API],                    [https://github.com/flourishlib/flourish-classes/blob/master/fCore.php Code]
+ - [/docs/fException fException]                              [/api/fException API],               [https://github.com/flourishlib/flourish-classes/blob/master/fException.php Code]
+  - [/docs/fExpectedException fExpectedException]             [/api/fExpectedException API],       [https://github.com/flourishlib/flourish-classes/blob/master/fExpectedException.php Code]
+   - [/docs/fAuthorizationException fAuthorizationException]  [/api/fAuthorizationException API],  [https://github.com/flourishlib/flourish-classes/blob/master/fAuthorizationException.php Code]
+   - [/docs/fEmptySetException fEmptySetException]            [/api/fEmptySetException API],       [https://github.com/flourishlib/flourish-classes/blob/master/fEmptySetException.php Code]
+   - [/docs/fNoRemainingException fNoRemainingException]      [/api/fNoRemainingException API],    [https://github.com/flourishlib/flourish-classes/blob/master/fNoRemainingException.php Code]
+   - [/docs/fNoRowsException fNoRowsException]                [/api/fNoRowsException API],         [https://github.com/flourishlib/flourish-classes/blob/master/fNoRowsException.php Code]
+   - [/docs/fNotFoundException fNotFoundException]            [/api/fNotFoundException API],       [https://github.com/flourishlib/flourish-classes/blob/master/fNotFoundException.php Code]
+   - [/docs/fValidationException fValidationException]        [/api/fValidationException API],     [https://github.com/flourishlib/flourish-classes/blob/master/fValidationException.php Code]
+  - [/docs/fUnexpectedException fUnexpectedException]         [/api/fUnexpectedException API],     [https://github.com/flourishlib/flourish-classes/blob/master/fUnexpectedException.php Code]
+   - [/docs/fConnectivityException fConnectivityException]    [/api/fConnectivityException API],   [https://github.com/flourishlib/flourish-classes/blob/master/fConnectivityException.php Code]
+   - [/docs/fEnvironmentException fEnvironmentException]      [/api/fEnvironmentException API],    [https://github.com/flourishlib/flourish-classes/blob/master/fEnvironmentException.php Code]
+   - [/docs/fProgrammerException fProgrammerException]        [/api/fProgrammerException API],     [https://github.com/flourishlib/flourish-classes/blob/master/fProgrammerException.php Code]
+   - [/docs/fSQLException fSQLException]                      [/api/fSQLException API],            [https://github.com/flourishlib/flourish-classes/blob/master/fSQLException.php Code]
+)))
+
+== General Documentation ==
+
+This documentation supplements the [#ClassDocumentation class documentation]
+and covers topics that touch on multiple parts of the library, or apply to PHP
+in general.
+
+<<css mode="next" class="stackable">>
+ - [/docs/BackwardsCompatibilityBreak Backwards Compatibility Breaks]
+ - [/docs/CodeStandards Code Standards]
+ - [/docs/CompilingPHPOnWindows Compiling PHP on Windows]
+ - [/docs/ConstructorFunctions Constructor Functions]
+ - [/docs/ContributorLicenseAgreements Contributor License Agreements]
+ - [/docs/FlourishCallbackSyntax Flourish Callback Syntax]
+ - [/docs/FlourishSql Flourish SQL]
+ - [/docs/GettingStarted Getting Started]
+ - [/docs/HowDoI How Do I…?]
+ - [/docs/InternalBackwardsCompatibilityBreak Internal Backwards Compatibility Breaks]
+ 
+<<css mode="next" class="stackable">>
+ - [/docs/InternationalizationLocalization Internationalization/Localization]
+ - [/docs/LicenseAgreement License Agreement]
+ - [/docs/MessagesList Messages List]
+ - [/docs/MethodNaming Method Naming]
+ - [/docs/MotivationsForFlourish Motivations for Flourish]
+ - [/docs/ObjectRelationalMapping Object-Relational Mapping]
+ - [/docs/ObtainingaSecureCertificateKeyPair Obtaining a Secure Certification Key Pair]
+ - [/docs/OrmConventions ORM Conventions]
+ - [/docs/PerformanceTips Performance Tips]
+ - [/docs/PhpVersionDifferences PHP Version Differences]
+
+<<css mode="next" class="stackable">>
+ - [/docs/ReferenceObjects Reference Objects]
+ - [/docs/Roadmap Roadmap]
+ - [/docs/Security Security]
+ - [/docs/ServerFund Server Fund]
+ - [/docs/ServerRequirements Server Requirements]
+ - [/docs/SitesPoweredByFlourish Sites Powered by Flourish]
+ - [/docs/UTF-8 UTF-8]
+ - [/docs/ValueObjects Value Objects]
+ - [/docs/Versioning Versioning]

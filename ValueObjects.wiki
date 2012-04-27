@@ -1,0 +1,22 @@
+= Value Objects =
+
+The term value object refers to a small object that contains a simple value such
+as a dates, numbers, string or money. They are implemented to be immutable,
+meaning a new object is created whenever modifications are requested. This
+property helps to prevent the side affects that come from objects being passed
+by reference.
+
+There are five classes in Flourish that are implemented as value objects:
+
+ - fDate
+ - fMoney
+ - fNumber
+ - fTime
+ - fTimestamp
+
+Here are some other pages about value objects:
+
+ - http://martinfowler.com/bliki/ValueObject.html
+ - http://c2.com/cgi/wiki?ValueObject
+
+The opposite of a value object is a [/docs/ReferenceObjects reference object].

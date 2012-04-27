@@ -1,0 +1,87 @@
+= fBuffer =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fBuffer Class Documentation]'''
+ - [/api/fBuffer API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fBuffer.php Source Code]
+
+<<toc bare>>
+)))
+
+The fBuffer class is a fairly straight-forward static class designed to make the [http://php.net/outcontrol output buffer] functions in PHP a little more user-friendly. Only a single level of buffering is supported, however it has been supplemented with buffer capture support and replace functionality.
+
+Output buffering is essential if you wish to change the headers a page sends after some of the output has been sent, and is also utilized by the fTemplating class for fully buffered output that allows changing values until right before the buffer is sent to the user.
+
+== Starting and Stopping ==
+
+Normally when using the output buffer function you call [http://php.net/ob_start `ob_start()`] to start output buffering and one of the `ob_end_*()` methods to stop buffering. The fBuffer class instead uses the ::start() and ::stop() methods. Here is an example:
+
+{{{
+#!php
+fBuffer::start();
+// Execute code that produces output
+// Send a header
+// Execute more code that creates output
+fBuffer::stop();
+}}}
+
+Gzip compression of the output buffer can be turned (if the [http://php.net/zlib zlib extension] is installed) by passing `TRUE` to `start()`.
+
+{{{
+#!php
+// Start the output buffer with gzip compression
+fBuffer::start(TRUE);
+}}}
+
+You can check to see if buffering has been started by calling ::isStarted():
+
+{{{
+#!php
+if (!fBuffer::isStarted()) {
+    fBuffer::start();
+}
+}}}
+
+== Getting, Erasing and Replacing ==
+
+To get the current contents of the output buffer, simply call ::get():
+
+{{{
+#!php
+$current_buffer = fBuffer::get();
+}}}
+
+If you wish to get rid of the buffered contents, call ::erase():
+
+{{{
+#!php
+// Get rid of the current buffer contents
+fBuffer::erase();
+}}}
+
+Also sometimes useful is the ability to replace a given string in the buffer with another. In this situation you can use the ::replace() method:
+
+{{{
+#!php
+// Output stuff
+
+// This would replace every instance of 'foo' with 'bar'
+fBuffer::replace('foo', 'bar');
+}}}
+
+== Capturing ==
+
+Some of the built-in PHP functions (and other third party code) will only output content, as opposed to returning it for further processing. The fBuffer class provides two methods, ::startCapture() and ::stopCapture(), that make it easy to intercept such output.
+
+{{{
+#!php
+// Begin capturing, everything passed to print or echo after here will be captured
+fBuffer::startCapture();
+
+// Execute code to output content
+// ...
+
+// Grab the captured output
+$captured_content = fBuffer::stopCapture();
+}}}

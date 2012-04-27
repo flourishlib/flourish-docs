@@ -1,0 +1,202 @@
+= fUpload =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fUpload Class Documentation]'''
+ - [/api/fUpload API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fUpload.php Source Code]
+
+<<toc bare>>
+
+== Filesystem Classes <<toc skip>> ==
+ - fFilesystem
+ - fFile
+  - fImage
+ - fDirectory
+ - '''fUpload'''
+)))
+
+The fUpload class provides functionality to validate and move files uploaded through HTML forms.
+
+== Prerequisites ==
+
+In order to use the fUpload class, a file needs to uploaded to PHP by the `POST` HTTP method. If the `POST` is coming from an HTML form, the form will need to have its `enctype` set to `multipart/form-data`.
+
+{{{
+#!html
+<form action="" method="POST" enctype="multipart/form-data">
+    <fieldset>
+        <p>
+            <label for="file">File</label>
+            <input id="file" type="file" name="file" />
+        </p>
+    </fieldset>
+</form>
+}}}
+
+== Instantiation ==
+
+The constructor does not accept any parameters.
+
+{{{
+#!php
+$uploader = new fUpload();
+}}}
+
+== Setting Options (Security) ==
+
+Uploaded files can be validated by configuring the fUpload instance using ::setMIMETypes(), ::setMaxSize(), ::setOptional(), ::enableOverwrite(), ::allowPHP() and ::allowDotFiles(). All of these methods must be called ''before'' the methods ::move() or ::validate() are called.
+
+=== setMIMETypes() ===
+
+As with all other data accepted from users, file uploads should be filtered to only allow safe content. The method `setMIMETypes()` allows defining the mime types to allow with an appropriate error message. The first parameter is an array of valid mime types and the second parameter is the error message to display if the mime types are not matched.
+
+{{{
+#!php
+$uploader->setMIMETypes(
+    array(
+        'image/gif',
+        'image/jpeg',
+        'image/pjpeg',
+        'image/png'
+    ),
+    'The file uploaded is not an image'
+);
+}}}
+
+While the `$_FILES` superglobal includes a mime type for the uploaded file, fUpload does not use this value since it is provided by the user and thus not trustworthy. Instead, mime type checking is done on the server side by inspecting the contents of the file. Please see the fFile::getMimeType() method documentation for a list of all supported mime types.
+
+=== setMaxSize() ===
+
+::setMaxSize() allows validating a file to ensure it does not exceed a specific size. It accepts a single parameter, `$size`, that can be any filesize with units or an integer to be interpreted as bytes.
+
+This method works in concert with two other settings, the [http://php.net/upload_max_filesize upload_max_filesize ini setting] and the [http://php.net/file-upload.post-method MAX_FILE_SIZE hidden input]. The `upload_max_filesize` ini setting controls the maximum size of a file that can be uploaded by a user, and must be larger or equal to the value passed to `setMaxSize()`. This setting can not be controlled in the PHP script since file uploads are processed before the request executes PHP.
+
+The `MAX_FILE_SIZE` hidden input is primarily designed for the convenience of end-users since it will reject large files before they are fully uploaded. Since the hidden input element is controlled by the program submitting the request, it can no be trusted and the `setMaxSize()` method must be used as a server-side failsafe.
+
+{{{
+#!php
+// These three method calls will all limit the uploaded file to 2 megabytes
+$uploader->setMaxSize('2m');
+$uploader->setMaxSize('2MB');
+$uploader->setMaxSize('2048k');
+}}}
+
+=== setOptional() ===
+
+By default, fUpload treats every file as required and will throw and exception or return an error if no file is uploaded. The method ::setOptional() changes this behavior to not treat the absence of a file as an error. This will cause the ::move() method to return `NULL` when no file is uploaded.
+
+{{{
+#!php
+$uploader->setOptional();
+}}}
+
+=== enableOverwrite() ===
+
+When uploading files, if there is an existing file with the same name in the destination directory the fUpload class will rename the uploaded file to a unique name. If this is not the desired action, the method ::enableOverwrite() will allow the class to overwrite existing files.
+
+{{{
+#!php
+$uploader->enableOverwrite();
+}}}
+
+=== allowPHP(), allowDotFiles() ===
+
+By default the fUpload class does not allow files ending in `.php`, `.php4` or `.php5` or beginning with `.` to be uploaded due to security concerns. If there is a need for PHP files to uploaded the method ::allowPHP() can be called. Files beginning with `.` may be allowed by calling ::allowDotFiles().
+
+{{{
+#!php
+$uploader->allowPHP();
+$uploader->allowDotFiles();
+}}}
+
+== Validation/Moving ==
+
+Once options have been set it is time to try moving (or possibly just validating) the uploaded file or files. The method ::move() will move the file uploading in the specified field to the directory requested, while the ::validate() method will simply ensure the uploaded file matches the options that were set. Calling `move()` will also cause `validate()` to happen.
+
+=== move() ===
+
+The ::move() accepts three parameters, the `$directory` to move the file to, the `$field` the file was uploaded through and optionally the `$index` of the file if the file upload was part of an array of file upload fields. The return value is an fFile object representing the newly moved file. An fValidationException will be thrown if no file was uploaded or one of the options is not met.
+
+{{{
+#!php
+// An example of uploading a file passing the destination directory as a string
+$file = $uploader->move('/uploaded/file/destination', 'file_input_name');
+
+// An example of passing the destination directory as an fDirectory object
+$dir = new fDirectory('/some/directory');
+$file = $uploader->move($dir, 'file_input_name');
+}}}
+
+If ::setOptional() has been called and no file was uploaded, `NULL` will be returned instead of an fFile object.
+
+=== validate() ===
+
+The `validate()` method accepts two parameters, the `$field` to validate and optionally the `$index` of the file if the file upload was part of an array of file upload fields. As with all other Flourish methods that begin with `validate`, this method will throw an fValidationException if one of the options is not met or no file is uploaded.
+
+{{{
+#!php
+$uploader->validate('file_input_name');
+}}}
+
+It is also possible to return an error instead of throwing an exception by passing `TRUE` as the second parameter.
+
+{{{
+#!php
+// $error will contain any error that occurs, or NULL if there is none
+$error = $uploader->validate('file_input_name', TRUE);
+}}}
+
+== Arrays of File Uploads ==
+
+When it is necessary to have a user upload multiple file, it is possible to take advantage of PHP array syntax for input fields. Any input field name that ends in `[]` will cause an array to be created in the `$_GET` or `$_POST` superglobals for normal inputs, or in the `$_FILES` superglobal for file uploads. Please note that on the PHP side, the `[]` is dropped from the input name, e.g. `file_input_name[]` would be found in `$_FILES['file_input_name']`.
+
+{{{
+#!html
+<form action="" method="POST" enctype="multipart/form-data">
+    <fieldset>
+        <p>
+            <label for="file_1">File 1</label>
+            <input id="file_1" type="file" name="file_input_name[]" />
+        </p>
+        <p>
+            <label for="file_2">File 2</label>
+            <input id="file_2" type="file" name="file_input_name[]" />
+        </p>
+    </fieldset>
+</form>
+}}}
+
+fUpload provides the static method ::count() to determine how many files were uploaded by a user. This can be used with the optional third parameter, `$index`, of ::move() or optional second parameter, `$index` of ::validate() to perform the action on the specified file.
+
+{{{
+#!php
+$files    = array();
+$uploaded = fUpload::count('file_input_name');
+for ($i=0; $i < $uploaded; $i++) {
+    $files[] = $uploader->move($dir, 'file_input_name', $i);
+}
+}}}
+
+When an index is specified for `validate()`, the boolean `$return_message` parameter to return the message instead of throw an exception is passed as the third parameter.
+
+{{{
+#!php
+// Return an error for the second file upload named attachment
+$error = $uploader->validate('attachment', 1, TRUE);
+}}}
+
+=== Filtering ===
+
+When multiple files are uploaded for a field, it is common for one or more file upload fields to not actually upload a file. The static method ::filter() accepts a `$field` name and will removed info about any file upload fields where a file was not uploaded.
+
+{{{
+#!php
+fUpload::filter('attachments');
+$uploader   = new fUpload();
+$attachment = array();
+$uploaded   = fUpload::count('attachments');
+for ($i=0; $i < $uploaded; $i++) {
+    $attachments[] = $uploader->move($dir, 'attachments', $i);
+}
+}}}

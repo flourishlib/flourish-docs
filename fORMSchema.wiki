@@ -1,0 +1,46 @@
+= fORMSchema =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fORMSchema Class Documentation]'''
+ - [/api/fORMSchema API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fORMSchema.php Source Code]
+
+<<toc bare>>
+
+== ORM Classes <<toc skip>> ==
+ - fActiveRecord
+ - fRecordSet
+
+ - fORM
+ - fORMColumn
+ - fORMDatabase
+ - fORMDate
+ - fORMFile
+ - fORMJSON
+ - fORMMoney
+ - fORMOrdering
+ - fORMRelated
+ - '''fORMSchema'''
+ - fORMValidation
+)))
+
+The fORMSchema class provides database schema information to the Flourish ORM. For end-developers the class provides access to a single instance of the fSchema class and allows for simple caching of the schema data.
+
+== fSchema Singleton ==
+
+Since the Flourish ORM bases almost all of its functionality on the schema of the database connected to, an instance of the fSchema class is required for it to properly function. As long as an instance of fDatabase has been properly attached using fORMDatabase, an instance of fSchema will be created and automatically attached to fORMSchema.
+
+If fSchema was extended or for some reason a custom instance needs to be attached, the static method ::attach() will do that.
+
+{{{
+#!php
+fORMSchema::attach(new SomeExtensionOfFSchema(fORMDatabase::retrieve()));
+}}}
+
+When writing custom code for the ORM, the fSchema singleton can be access by calling the static method ::retrieve().
+
+{{{
+#!php
+$primary_keys = fORMSchema::retrieve()->getKeys('users', 'primary');
+}}}

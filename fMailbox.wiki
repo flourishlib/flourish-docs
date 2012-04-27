@@ -1,0 +1,236 @@
+= fMailbox =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fMailbox Class Documentation]'''
+ - [/api/fMailbox API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fMailbox.php Source Code]
+
+<<toc bare>>
+
+== Email Classes <<toc skip>> ==
+ - fEmail
+ - '''fMailbox'''
+ - fSMTP
+)))
+
+The fMailbox class provides an interface to list, fetch and delete emails from POP3 and IMAP servers. It fully parses the messages, handles attachments, related content and inline files. All text content is converted to UTF-8. ''This class does '''not''' require the PHP [http://php.net/imap imap extension].'' Secure connections are supported if the [http://php.net/openssl openssl extension] is installed.
+
+== Instantiation ==
+
+To create a mailbox object, you must provide the `$type` (either `pop3` or `imap`), `$server`, `$username` and `$password`.
+
+{{{
+#!php
+// Connect to a local pop3 server
+$mailbox = new fMailbox('pop3', 'localhost', 'user', 'password');
+
+// Connect to a remote imap server
+$mailbox = new fMailbox('imap', 'example.com', 'user', 'password');
+}}}
+
+The `$port` is automatically determined by the type, but can be overridden as a fifth parameter.
+
+{{{
+#!php
+// Connect to an imap server on port 874
+$mailbox = new fMailbox('imap', 'example.com', 'user', 'password', 874);
+}}}
+
+If the connection needs to be `$secure`, pass `TRUE` to the sixth parameter.
+
+{{{
+#!php
+// Make a secure connection on the default secure IMAP port
+$mailbox = new fMailbox('imap', 'example.com', 'user', 'password', NULL, TRUE);
+}}}
+
+The default socket `$timeout` in seconds can be adjusted with the seventh parameter.
+
+{{{
+#!php
+// Timeout after 5 seconds
+$mailbox = new fMailbox('imap', 'example.com', 'user', 'password', NULL, FALSE, 5);
+}}}
+
+== Listing ==
+
+A list of messages can be retrieved from a mailbox by calling the ::listMessages() method.
+
+{{{
+#!php
+// Retrieve an overview of all messages
+$messages = $mailbox->listMessages();
+}}}
+
+The result in an array of messages, with the key being the message's unique identifier (UID) and the value being an array with the keys:
+
+ - `uid`: a unique identifier for this message on this server ''integer''
+ - `received`: date message was received ''string''
+ - `size`: size of message in bytes ''integer''
+ - `date`: date message was sent ''string''
+ - `from`: the `From:` header value ''string''
+ - `subject`: the message subject ''string''
+ - `message_id`: the message-id header value, should be globally unique ''string, optional''
+ - `to`: the to header value ''string. optional''
+ - `in_reply_to`: the in-reply-to header value ''string, optional''
+
+Below is an example of a list containing a single example messages:
+
+{{{
+#!php
+array(
+    7556 => array(
+        'uid' => 7556,
+        'received' => '28 Jan 2010 19:45:07 -400',
+        'size' => 1735,
+        'date' => '28 Jan 2010 19:44:48 -400',
+        'from' => '"John Smith" <john@example.com>',
+        'subject' => 'Thanks for Signing Up!',
+        'message_id' => '<788a8c8865e19b0c3243@example.com>',
+        'to' => 'will@flourishlib.com, Joe <joe@example.com>',
+        'in_reply_to' => '',
+    )
+)
+}}}
+
+`listMessages()` has two optional parameters, the `$limit` and `$page` which control how many and which messages should be retrieved.
+
+{{{
+#!php
+// Get the first five messages
+$messages = $mailbox->listMessages(5);
+
+// Get messages 11 to 15
+$messages = $mailbox->listMessage(5, 3);
+}}}
+
+== Fetching ==
+
+Individual messages can be retrieved in a parsed format by calling the method ::fetchMessage(). It requires a single parameter, `$uid`, which can be retrieved by the ::listMessages() method.
+
+{{{
+#!php
+$message = $mailbox->fetchMessage(7556);
+}}}
+
+The return value is an associative array containing information about the message. The array will always include the following keys:
+
+ - `uid`: The UID of the message
+ - `received`: The date the message was received by the server
+ - `headers`: An associative array of mail headers, the keys being the lowercase header names. By default the values are a string, but the following headers are further parsed:
+  - `received`: An array of the `Recieved` headers
+  - `to`: An array of parsed addressees, each being an associative array in the format:
+   - `mailbox`: The part before the `@`
+   - `host`: The part after the `@`
+   - `personal`: The addressee's name ''optional''
+  - `cc`: An array of parsed addressees, in the same format as `to`
+  - `from`: An associative array of the from address, in the same format as `to`
+  - `sender`: An associative array of the sender address, in the same format as `to`
+  - `reply-to`: An associative array of the address to reply to, in the same format as `to`
+  - `content-type`: An associative array in the format:
+   - `value`: The main header value
+   - `fields`: An associative array of the `;` separated key=value pairs after the main value
+  - `content-disposition`: An associative array in the same format as `content-type`
+
+And one or more of the following keys:
+
+ - `text`: The plaintext body
+ - `html`: The HTML body
+ - `attachment`: An array of attachments, each containing:
+  - `filename`: The name of the file
+  - `mimetype`: The mimetype of the file
+  - `data`: The raw contents of the file
+ - `inline`: An array of inline files, each containing:
+  - `filename`: The name of the file
+  - `mimetype`: The mimetype of the file
+  - `data`: The raw contents of the file
+ - `related`: An associative array of related files, such as embedded images, with the key `cid:{content-id}` and an array value containing:
+   - `mimetype`: The mimetype of the file
+   - `data`: The raw contents of the file
+ - `verified`: If the message contents were verified via an S/MIME certificate - if not verified the `smime.p7s` file will be listed as an attachment
+ - `decrypted`: If the message contents were decrypted via an S/MIME private key - if not decrypted the `smime.p7m` file will be listed as an attachment
+
+All values in headers, text and body will have been decoded to UTF-8. Files in the attachment, inline and related array will all retain their original encodings.
+
+Here is an example of a parsed message:
+
+{{{
+#!php
+array(
+    'received' => '28 Apr 2010 22:00:38 -0400',
+    'headers'  => array(
+		'received' => array(
+			0 => '(qmail 25838 invoked from network); 28 Apr 2010 22:00:38 -0400',
+			1 => 'from example.com (HELO ?192.168.10.2?) (example) by example.com with (DHE-RSA-AES256-SHA encrypted) SMTP; 28 Apr 2010 22:00:38 -0400'
+		),
+		'message-id' => '<4BD8E815.1050209@flourishlib.com>',
+		'date' => 'Wed, 28 Apr 2010 21:59:49 -0400',
+		'from' => array(
+			'personal' => 'Will Bond',
+			'mailbox'  => 'tests',
+			'host'     => 'flourishlib.com'
+		),
+		'user-agent'   => 'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.1.9) Gecko/20100317 Thunderbird/3.0.4',
+		'mime-version' => '1.0',
+		'to' => array(
+			0 => array(
+				'mailbox' => 'tests',
+				'host'    => 'flourishlib.com'
+			)
+		),
+		'subject' => 'This message is encrypted'
+    ),
+    'text'      => 'This message is encrypted',
+    'decrypted' => TRUE,
+    'uid'       => 15
+);
+}}}
+
+The second, optional boolean parameter `$convert_newlines` will convert all `\r\n` line-endings to `\n` inside of the `text` and `html` elements when set to `TRUE`.
+
+{{{
+#!php
+// Convert all line-endings to \n for the text and html
+$message = $mailbox->fetchMessage(7556, TRUE);
+}}}
+
+== Deleting ==
+
+One or more messages can be deleted at a time by calling ::deleteMessages() and passing a single UID, or an array of UIDs.
+
+{{{
+#!php
+// Delete a single message
+$mailbox->deleteMessages(7556);
+
+// Delete multiple messages
+$mailbox->deleteMessages(array(54, 928, 892));
+}}}
+
+== Parsing ==
+
+The static method ::parseMessage() can be used to parse a full MIME email message into the same format that ::fetchMessage() returns, minus the `uid` key.
+
+{{{
+#!php
+$parsed_message = fMailbox::parseMessage(file_get_contents('/path/to/email'));
+}}}
+
+Like `fetchMessage()`, it also supports a second, optional boolean parameter `$convert_newlines` to change `\r\n` into `\n` for `text` and `html`.
+
+== S/MIME Decryption and Verification ==
+
+One of the more advanced features of fMailbox is the ability to seamlessly handle S/MIME signed and encrypted messages. The static method ::addSMIMEPair() accepts an `$email_address` and either a single S/MIME `$certificate_file` path or that combined with an S/MIME `$private_key_file` path and `$private_key_password`.
+
+{{{
+#!php
+// Adds the certificate and private key for will@flourishlib.com
+fMailbox::addSMIMEPair('will@flourishlib.com', '/path/to/will.crt', '/path/to/will.key', 'password');
+}}}
+
+If the certificate is provided, messages coming from the `$email_address` and S/MIME signed will be checked for authenticity. Currently the class is configured to only verify messages with an explicitly added key, and will not use the certificate included in the signature.
+
+If the private key and certificate are provided, any messages coming to the `$email_address` and S/MIME encrypted will be decrypted. The parsed message will contain the decrypted content in the appropriate `text`, `html`, `attachment`, etc. sections of the parsed message array.
+
+If verification succeeds, the `verified` key will be set to `TRUE` in the parsed message array. If decryption is successful, the `decrypted` key will be set to `TRUE`. If either fail, or a certificate or key is not available for the specified email address, the S/MIME signature or encrypted message will appear as a file in the `attachment` element.

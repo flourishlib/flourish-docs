@@ -1,0 +1,129 @@
+= Motivations for Flourish =
+<<toc>>
+
+Before work on Flourish began, a good deal of time was spent trying to find a
+PHP framework or library that accomplished the following:
+
+ - Does not require use of
+   [http://www.martinfowler.com/eaaCatalog/modelViewController.html MVC],
+   especially the [http://www.martinfowler.com/eaaCatalog/frontController.html
+   Front Controller] variation
+ - Has good documentation that allows finding what you want with minimal effort
+ - Handles OS/server portability well, requiring a minimum of non-standard PHP
+   extensions
+ - Encourages security best-practices and provides tools and examples to secure
+   applications
+ - Provides an easy to use and consistent API so that end-user code doesn't
+   have to handle as many edge cases
+ - Does not require manual definition of [/docs/ObjectRelationalMapping ORM]
+   model schemas or relationships
+ - Is not released in long monolithic release cycles
+ - Doesn’t require using the developer’s favorite
+   [http://en.wikipedia.org/wiki/Revision_control revision control] software
+   ([http://en.wikipedia.org/wiki/Subversion_(software) SVN],
+   [http://en.wikipedia.org/wiki/Concurrent_Versions_System CVS],
+   [http://en.wikipedia.org/wiki/Git_(software) GIT],
+   [http://en.wikipedia.org/wiki/Bazaar_(software) Bazaar], etc) to get the
+   latest code
+ - Allows removing extraneous code or downloading only what you want
+ - Provides a simplified and consistent interface to common PHP usage patterns
+ - Does not simply try to emulate another framework from another language
+ - Is released under a minimally invasive open source license, to allow for
+   inclusion in closed source code
+
+== Research Results ==
+
+Some of the frameworks and libraries that were investigated include:
+
+=== PEAR ===
+
+ - '''Homepage:''' http://pear.php.net
+ - '''License:''' various
+ - '''Overview:''' A large collection of disjoint classes from many different
+   maintainers, many have poor documentation and a confusing APIs
+
+=== Propel ===
+
+ - '''Homepage:''' http://propel.phpdb.org
+ - '''License:''' [http://propel.phpdb.org/trac/wiki/Users/Introduction/License
+   LGPL]
+ - '''Overview:''' Apache’s Torque Java ORM ported to PHP, XML schema definition
+
+=== Doctrine ===
+
+ - '''Homepage:''' http://phpdoctrine.org
+ - '''License:''' [http://trac.phpdoctrine.org/browser/trunk/LICENSE LGPL]
+ - '''Overview:''' A very large and complicated ORM with its own abstraction of
+   SQL
+
+=== Code Igniter ===
+
+ - '''Homepage:''' http://codeigniter.com
+ - '''License:''' [http://codeigniter.com/user_guide/license.html BSD-ish]
+ - '''Overview:''' An MVC framework for PHP4/5
+
+=== Kohana ===
+
+ - '''Homepage:''' http://kohanaphp.com
+ - '''License:''' [http://kohanaphp.com/license.html BSD]
+ - '''Overview:''' Originally a fork of Code Igniter, now rebuilt in PHP5.
+   Still strict MVC, decent documentation.
+
+=== Seagull ===
+
+ - '''Homepage:''' http://seagullproject.org
+ - '''License:''' [http://trac.seagullproject.org/browser/trunk/COPYING.txt BSD]
+ - '''Overview:''' A long-lived and somewhat confusing MVC framework with
+   PHP4/5 support
+
+=== Symfony ===
+
+ - '''Homepage:''' http://www.symfony-project.org
+ - '''License:''' [http://www.symfony-project.org/content/license MIT]
+ - '''Overview:''' An "Enterprise" PHP5 MVC framework—one of the slowest
+   available
+
+=== CakePHP ===
+
+ - '''Homepage:''' http://cakephp.org
+ - '''License:''' [https://trac.cakephp.org/browser/trunk/cake/1.1.x.x/cake/LICENSE.txt MIT]
+ - '''Overview:''' PHP4/5 MVC framework with lots of community—one of the
+   slowest available
+
+=== SolarPHP ===
+
+ - '''Homepage:''' http://solarphp.com
+ - '''License:''' [http://opensource.org/licenses/bsd-license.php BSD]
+ - '''Overview:''' A huge library/framework with a long release cycle, still
+   in alpha
+
+=== Zend Framework ===
+
+ - '''Homepage:''' http://framework.zend.com
+ - '''License:''' [http://framework.zend.com/license BSD]
+ - '''Overview:''' The definition of "Enterprise" with over 1500 source files
+
+== Other PHP Frameworks/Libraries ==
+
+The following are some other (mostly smaller) frameworks and libraries that
+were not fully reviewed.
+
+ - http://www.atomikframework.com/
+ - http://www.yiiframework.com/
+ - http://www.qadram.com/vcl4php/
+ - http://adventure-php-framework.org/Page/001-Home
+ - http://phocoa.com/
+ - http://cognifty.com/
+ - http://www.qcodo.com/
+ - http://okapi.liip.ch/
+ - http://www.akelos.org/
+ - http://code.google.com/p/phaux/
+ - http://orchid.phpxperts.net/
+ - http://www.pradosoft.com/
+ - http://ez.no/ezcomponents
+ - http://www.fusebox.org/
+ - http://www.phpontrax.com/
+ - http://qphp.net/
+ - http://www.zoopframework.com/
+ - http://www.stubbles.net/
+ - http://www.stratosframework.com/

@@ -1,0 +1,41 @@
+= fUnexpectedException =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fUnexpectedException Class Documentation]'''
+ - [/api/fUnexpectedException API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fUnexpectedException.php Source Code]
+
+<<toc bare>>
+
+== Exception Classes <<toc skip>> ==
+ - fException
+  - fExpectedException
+   - fAuthorizationException
+   - fEmptySetException
+   - fNoRemainingException
+   - fNoRowsException
+   - fNotFoundException
+   - fValidationException
+  - '''fUnexpectedException'''
+   - fConnectivityException
+   - fEnvironmentException
+   - fProgrammerException
+   - fSQLException
+)))
+
+fUnexpectedException is a sub-class of fException meant to provide a common parent class for all exceptions that should '''''not''''' be expected or handled in the site/application code.
+
+== Special Functionality ==
+
+All classes that extend fUnexpectedException change the functionality of the `printMessage()` method. Instead of printing the exception message, a generic error message is printed. These classes are designed to be handled by the fCore::enableExceptionHandling() method, which intercepts all uncaught exceptions and delivers the backtrace via one of three methods (see the [/docs/fCore#ErrorExceptionHandling fCore class] for details).
+
+== Child Classes ==
+
+Below is a list of all child classes that extend fUnexpectedException. These classes are '''''not''''' documented using a ''Throws:'' entry in the API documentation since they should '''''not''''' be handled via normal site/application code.
+
+|| '''Class'''             || '''Description''' ||
+|| fConnectivityException  || This type of exception indicates some sort of connection error occured, whether it be with a database server, remote API, etc. ||
+|| fEnvironmentException   || This type of exception indicates something is wrong with the server environment that is preventing proper execution of code. ||
+|| fProgrammerException    || This type of exception indicates that the programming building the site/application wrote invalid code, or somehow otherwise violated an expected format or sequence. ||
+|| fSQLException           || This type of exception indicates an error was returned when executing an SQL query. This will not be thrown in the situation where a query returns no results, but rather when SQL syntax is incorrect. ||

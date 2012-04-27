@@ -1,0 +1,27 @@
+= fEnvironmentException =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fEnvironmentException Class Documentation]'''
+ - [/api/fEnvironmentException API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fEnvironmentException.php Source Code]
+
+== Exception Classes <<toc skip>> ==
+ - fException
+  - fExpectedException
+   - fAuthorizationException
+   - fEmptySetException
+   - fNoRemainingException
+   - fNoRowsException
+   - fNotFoundException
+   - fValidationException
+  - fUnexpectedException
+   - fConnectivityException
+   - '''fEnvironmentException'''
+   - fProgrammerException
+   - fSQLException
+)))
+
+fEnvironmentException is a sub-class of fUnexpectedException that indicates some sort of required code, extension or other server environment issue has prevented futher execution of the code. Examples of this type of exception being tossed include a missing PHP extension for cryptography, no image manipulation library present, or an outdated version of PHP being used.
+
+''This space intentionally left blank''

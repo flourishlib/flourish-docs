@@ -1,0 +1,27 @@
+= fNotFoundException =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fNotFoundException Class Documentation]'''
+ - [/api/fNotFoundException API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fNotFoundException.php Source Code]
+
+== Exception Classes <<toc skip>> ==
+ - fException
+  - fExpectedException
+   - fAuthorizationException
+   - fEmptySetException
+   - fNoRemainingException
+   - fNoRowsException
+   - '''fNotFoundException'''
+   - fValidationException
+  - fUnexpectedException
+   - fConnectivityException
+   - fEnvironmentException
+   - fProgrammerException
+   - fSQLException
+)))
+
+fNotFoundException is a sub-class of fExpectedException that indicates an item could not be found, such as when using object relational mapping code. This class may also be suitable to toss in other situations where code is unable to find a specified element or item.
+
+''This space intentionally left blank''

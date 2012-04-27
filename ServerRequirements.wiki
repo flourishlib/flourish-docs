@@ -1,0 +1,46 @@
+= Server Requirements =
+<<toc>>
+
+Whenever possible Flourish is coded to support any server with at least the
+default extensions and PHP 5.1.0 or greater. Here is a list of the default
+extensions used throughout the code:
+
+ - [http://php.net/ctype ctype]
+ - [http://php.net/iconv iconv]
+ - [http://php.net/pcre pcre]
+ - [http://php.net/session session]
+ - [http://php.net/spl spl]
+
+It is possible to disable these extensions when compiling PHP, so you will need
+to ensure each is installed. The simplest way is to look at the output of a
+script with the following contents:
+
+{{{
+#!php
+<?php
+phpinfo();
+}}}
+
+== Class Specific Requirements ==
+
+Beyond the Flourish-wide requirements there are a few non-default security-
+related extensions that are required for specific features. Below is a list of
+classes/methods and what they require.
+
+|| '''Classes/Methods'''                                                     || '''Extensions Required''' ||
+|| fCrytography::publicKeyEncrypt(), fCryptography::publicKeyDecrypt()       || [http://php.net/openssl openssl] ||
+|| fCrytography::publicKeySign(), fCryptography::publicKeyVerify()           || [http://php.net/openssl openssl] ||
+|| fCrytography::symmetricKeyEncrypt(), fCryptography::symmetricKeyDecrypt() || [http://php.net/mcrypt mcrypt] ||
+|| fEmail::sign(), fEmail::encrypt()                                         || [http://php.net/openssl openssl] ||
+|| fSMTP::__construct() with the `$secure` flag                              || [http://php.net/openssl openssl] ||
+
+== Extensions for Performance ==
+
+A few of the Flourish classes provide pure PHP implementations of functionality
+that is also available from extensions that are not installed by default. Below
+is a list of the classes and the extension that will provide better performance.
+
+|| '''Class'''    || '''Extension'''                                         ||
+|| fJSON          || [http://php.net/json json] (included in 5.2 by default) ||
+|| fNumber/fMoney || [http://php.net/bc bcmath]                              ||
+|| fUTF8          || [http://php.net/mbstring mbstring]                      ||

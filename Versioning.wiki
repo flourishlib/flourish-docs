@@ -1,0 +1,43 @@
+= Versioning =
+<<toc>>
+
+Versioning happens on two different levels with Flourish. On the lowest level,
+each class that is part of Flourish is versioned using a three-part number. On
+the library level, Flourish is versioned using the current revision number of
+the SVN repository.
+
+== Class Versioning ==
+
+All classes are versioned using a three-part number in the following format:
+
+{{{
+{major_version}.{minor_version}.{edit_version}
+}}}
+
+Below are some examples of valid version numbers:
+
+{{{
+1.0.0
+1.0.25
+1.5.1
+1.0.0b
+}}}
+
+The last version, `1.0.0b` signifies that the class is currently in beta. This
+type of version will only exist before version `1.0.0`, and will not be present
+once Flourish [/docs/Roadmap hits stable].
+
+The version number have the following significance:
+
+ - '''Major version:''' this will only change when a major rearchitecting of a
+   class happens, or when backwards compatibility breaks occur
+ - '''Minor version:''' an increase to the minor version indicates that a new
+   feature was added or an existing feature was enhanced
+ - '''Edit version:''' this is the most common change to the version and
+   indicates a bug was fixed or changes were made that did not affect
+   functionality in any way
+
+== Library Versioning ==
+
+Flourish, as a library of related classes, is versioned simply by the current
+revision of the master SVN repository.

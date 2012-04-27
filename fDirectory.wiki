@@ -1,0 +1,84 @@
+= fDirectory =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fDirectory Class Documentation]'''
+ - [/api/fDirectory API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fDirectory.php Source Code]
+
+<<toc bare>>
+
+== Filesystem Classes <<toc skip>> ==
+ - fFilesystem
+ - fFile
+  - fImage
+ - '''fDirectory'''
+ - fUpload
+)))
+
+The fDirectory class is a simple object representation of a directory on the filesystem. It provides an object-based interface to common directory functions and allows actions to be grouped into transactions via the fFilesystem class.
+
+== Instantiation ==
+
+The fDirectory constructor takes a single argument, the filesystem path to a directory. The path can be absolute or relative.
+
+{{{
+#!php
+$directory1 = new fDirectory('/var/www/vhosts/examples.com/httpdocs/images/');
+$directory2 = new fDirectory('./output/');
+$directory3 = new fDirectory('../uploads/documents/');
+}}}
+
+It is also possible to create a directory on the filesystem and instantiate an fDirectory object for that new directory by calling the static method ::create(). `create()` takes up to two parameters, with the first being `$directory_path` and the second optional parameter being `$mode`. The `$mode` parameter allows setting the permissions for the new directory, and usually is set using an octal number (represented by a number with a leading zero such as 0777).
+
+Please note that directory creation is recursive, so any non-existant parent directories will also be created as needed.
+
+{{{
+#!php
+$new_directory = fDirectory::create('./logs/');
+}}}
+
+== Getting Information ==
+
+The fDirectory class includes a few methods to grab some basic information about a directory. These include:
+
+|| '''Method'''      || '''Description''' ||
+|| ::getName()       || Returns the name of the directory as a string - does not include the full path ||
+|| ::getSize()       || Returns the size of the directory and all contents in bytes as an integer, or optionally formatted for easy human readability ||
+|| ::getParent()     || Returns the fDirectory object for the directory’s parent directory ||
+|| ::getPath()       || Returns the full path to the directory as a string ||
+|| ::isWritable()    || Indicates if the directory can be written to by the current user ||
+
+If you want more specific information about a directory, you can pass the output of `getPath()` into the various [http://php.net/filesystem PHP filesystem functions]. 
+
+== Manipulation ==
+
+The following methods provide a straight-forward interface for some standard manipulation of directories. Also note that these manipulations can be wrapped in a [/docs/fFilesystem#Transactions filesystem transactions] to allow for rolling back changes in the event of a later error.
+
+|| '''Method''' || '''Description''' ||
+|| ::rename()   || Renames the directory to a new path ||
+|| ::move()     || Moves the directory into a different parent directory, keeping the current name ||
+|| ::delete()   || Removes the directory and all contained files and folders from the filesystem. Please note that if inside of a filesystem transaction, this event will be deferred until commit is called, but instances of fDirectory and fFile for all affected files and directories will act as if the directory/file no longer exists. ||
+|| ::clear()    || Removes all contained files and folders from the filesystem. Please note that if inside of a filesystem transaction, this event will be deferred until commit is called, but instances of fDirectory and fFile for all affected files and directories will act as if the directory/file no longer exists. ||
+
+== Listing Children ==
+
+The ::scan() and ::scanRecursive() method provide functionality for listing all fFile, fImage and fDirectory children of an fDirectory object. Both return an array of objects, however `scan()` returns only direct children, whereas `scanRecursive()` returns all descendants.
+
+{{{
+#!php
+$children = $dir->scan();
+
+$descendants = $dir->scanRecursive();
+}}}
+
+Both methods accept a single optional parameter, `$filter`. The filter can be a valid [http://php.net/pcre PCRE regex pattern], or a string pattern containing `*` and `?` wildcards. `*` will match zero or more characters, while `?` will match zero or one characters. When matching the `$filter`, all file paths will have `/` directory separators, and all directories will end in `/`.
+
+{{{
+#!php
+// This will list all directory children
+$directories = $dir->scan('*/');
+
+// This will find all jpg and gif files under the current directory
+$images = $dir->scanRecursive('#\.(jpe?g|gif)$#i');
+}}}

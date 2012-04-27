@@ -1,0 +1,20 @@
+= Contributor License Agreements =
+
+In order for anyone other than myself to contribute ideas, code or
+documentation to Flourish, I ask that they sign a contributor license
+agreement (CLA). This document is used to define the terms under which
+contributions to Flourish are made. They also could potentially be used in the
+case of a law suit to help in defense.
+
+Individuals contributing any code, documentation or ideas that they own the
+rights to should sign the [/files/flourish_cla.pdf
+Flourish Contributor License Agreement]. If you are submitting intellectual
+property (IP) owned by your employer, they will need to sign the
+[/files/flourish_ccla.pdf Flourish Corporate Contributor
+License Agreement]. Please be aware that an individual who is covered under a
+corporate CLA will also need to submit an individual CLA if they submit any IP
+that is not owned by their employer.
+
+ - '''[/files/flourish_cla.pdf Flourish Contributor License Agreement]'''
+ - '''[/files/flourish_ccla.pdf Flourish Corporate Contributor License Agreement]'''
+

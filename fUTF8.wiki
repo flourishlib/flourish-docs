@@ -1,0 +1,58 @@
+= fUTF8 =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fUTF8 Class Documentation]'''
+ - [/api/fUTF8 API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fUTF8.php Source Code]
+
+<<toc bare>>
+)))
+
+The class fUTF8 is a static class that provides UTF-8 compatible versions of almost every string function that is provided with PHP. Since UTF-8 uses multiple bytes of data for some characters and the built-in PHP string functions are built to work with single-byte encodings, many of the PHP string functions will perform incorrectly on UTF-8 strings.
+
+There is a PHP extension called [http://php.net/mbstring mbstring] that is designed for dealing with multi-byte string encodings, however it is not installed by default, does not include many commonly used functions, and contains some bugs. The fUTF8 class will use the mbstring extension for performance benefits in appropriate situations if it is installed.
+
+== Method to Function Mapping ==
+
+The table below contains a list of the built-in PHP string functions with the equivalent fUTF8 method beside it. Any additional features or differences will also be listed.
+
+|| '''PHP Function'''                               || '''!fUTF8 Method''' || '''Differences''' ||
+|| [http://php.net/chr `chr()`]                     || ::chr()             || Accepts U+hex or decimal Unicode code point instead of ASCII decimal value  ||
+|| [http://php.net/explode `explode()`]             || ::explode()         || Parameter order is switched to `$string`, `$delimeter` - also accepts `NULL` delimeter to explode into characters ||
+|| [http://php.net/trim `ltrim()`]                  || ::ltrim()            ||  ||
+|| [http://php.net/ord `ord()`]                     || ::ord()             || Returns U+hex Unicode code point instead of ASCII decimal value ||
+|| [http://php.net/rtrim `rtrim()`]                 || ::rtrim()           ||  ||
+|| [http://php.net/str_ireplace `str_ireplace()`]   || ::ireplace()        ||  ||
+|| [http://php.net/str_pad `str_pad()`]             || ::pad()             ||  ||
+|| [http://php.net/str_replace `str_replace()`]     || ::replace()         ||  ||
+|| [http://php.net/strcasecmp `strcasecmp()`]       || ::icmp()            || Letters that are ASCII letters with diacritics are sorted right after the base ASCII letter ||
+|| [http://php.net/strcmp `strcmp()`]               || ::cmp()             || Letters that are ASCII letters with diacritics are sorted right after the base ASCII letter ||
+|| [http://php.net/stripos `stripos()`]             || ::ipos()            ||  ||
+|| [http://php.net/stristr `stristr()`]             || ::istr()            ||  ||
+|| [http://php.net/strlen `strlen()`]               || ::len()             ||  ||
+|| [http://php.net/strnatcasecmp `strnatcasecmp()`] || ::inatcmp()         || Letters that are ASCII letters with diacritics are sorted right after the base ASCII letter ||
+|| [http://php.net/strnatcmp `strnatcmp()`]         || ::natcmp()          || Letters that are ASCII letters with diacritics are sorted right after the base ASCII letter ||
+|| [http://php.net/strpos `strpos()`]               || ::pos()             ||  ||
+|| [http://php.net/strrev `strrev()`]               || ::rev()             ||  ||
+|| [http://php.net/strripos `strripos()`]           || ::irpos()           ||  ||
+|| [http://php.net/strrpos `strrpos()`]             || ::rpos()            ||  ||
+|| [http://php.net/strstr `strstr()`]               || ::str()             ||  ||
+|| [http://php.net/strtolower `strtolower()`]       || ::lower()           ||  ||
+|| [http://php.net/strtoupper `strtoupper()`]       || ::upper()           ||  ||
+|| [http://php.net/substr `substr()`]               || ::sub()             ||  ||
+|| [http://php.net/trim `trim()`]                   || ::trim()            ||  ||
+|| [http://php.net/ucfirst `ucfirst()`]             || ::ucfirst()         ||  ||
+|| [http://php.net/ucwords `ucwords()`]             || ::ucwords()         ||  ||
+|| [http://php.net/wordwrap `wordwrap()`]           || ::wordwrap()        ||  ||
+
+== Cleaning Strings (Security) ==
+
+Due to the way that UTF-8 is implemented, certain character combinations are not allowed. Allowing such invalid data into a system could easily lead to all sorts of bugs with character parsing. To solve this issue, the ::clean() method will remove any malformed UTF-8 characters from a string.
+
+This method should be used when importing data into a system from an external data source that may contain invalid data. ''Please note that fRequest::get() and fCookie::get() automatically call this method, so it is not necessary to clean it again.''
+
+{{{
+#!php
+$cleaned_string = fUTF8::clean($imported_string);
+}}}

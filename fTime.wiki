@@ -1,0 +1,169 @@
+= fTime =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fTime Class Documentation]'''
+ - [/api/fTime API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fTime.php Source Code]
+
+<<toc bare>>
+
+== Date/Time Classes <<toc skip>> ==
+ - fDate
+ - '''fTime'''
+ - fTimestamp
+
+== Value Objects <<toc skip>> ==
+ - fDate
+ - fMoney
+ - fNumber
+ - '''fTime'''
+ - fTimestamp
+)))
+
+The fTime class is a [/docs/ValueObjects value object] representation of a time. One of the primary attributes of the object is that its value can not be changed, but instead a new object is created. 
+
+== Instantiation ==
+
+The fTime constructor takes a single argument, a string, object or integer representing a time of day. For strings and objects (with `__toString()` methods), any format accepted by [http://php.net/strtotime `strtotime()`] will work. If the parameter is an integer, it will be interpreted as a unix timestamp and the date portion will be discarded.
+
+{{{
+#!php
+$time1 = new fTime('now');
+$time2 = new fTime('+1 hour');
+$time3 = new fTime('9:14 am');
+$time4 = new fTime(1223926420);
+}}}
+
+== Modification ==
+
+Rather than allowing an fTime object value to be modified, which can create issues since objects are passed by reference, all changes to a time create a new object.
+
+Usually when modifying a time, only one or two components (such as hour or minute) of the time will change. The ::modify() method leverages the formatting codes from the [http://php.net/function.date `date()`] function to keep parts of the existing time while replacing others.
+
+Here are some examples of `modify()`:
+
+{{{
+#!php
+// The new time would have the same minutes and seconds, but the hour would be set to 5am
+$new_time = $time1->modify('5:i:s');
+
+// The new time would be the same hour, but the very beginning
+$new_time = $time2->modify('H:00:00');
+
+// The new time would be the same hour, but the very end
+$new_time = $time3->modify('H:59:59');
+}}}
+
+== Adjustments ==
+
+Occasionally you may have the need to adjust a time. The ::adjust() method takes a single parameter which can contain any relative time measurement that [http://php.net/strtotime `strtotime()`] accepts. Since fTime is a value object, a new object is returned with the adjusted time. Here are some examples:
+
+{{{
+#!php
+$new_time = $time1->adjust('+1 hour');
+$new_time = $time2->adjust('-2 hours +5 minutes');
+}}}
+
+== Formatting ==
+
+To format the time, simply call the ::format() method with any valid time formatting string from [http://php.net/date `date()`].  Here are some examples:
+
+{{{
+#!php
+echo $time1->format('g:ia');
+echo $time2->format('H:i:s');
+}}}
+
+== Comparing ==
+
+There are five different methods available to compare times, ::eq(), ::gt(), ::gte(), ::lt() and ::lte(). Each method optionally accepts a parameter `$other_time`. If no `$other_time` is specified, the time is compared to the current time. If `$other_time` is specified, the two are compared. `$other_time` accepts any valid date string that works with ::__construct().
+
+Here are some examples:
+
+{{{
+#!php
+$now = new fTime();
+$hour_ago = new fTime('-1 hour');
+
+// These return TRUE
+$now->eq();
+$now->eq('now');
+$now->gt($hour_ago);
+$now->gte($hour_ago);
+$now->lt('+5 min');
+
+// These calls return FALSE
+$hour_ago->lt($now);
+$now->gt($hour_ago);
+$now->gte($hour_ago);
+}}}
+
+== Fuzzy Differences ==
+
+If you are looking to get a fuzzy difference between two times for display, you’ll want to use the ::getFuzzyDifference() method. The first parameter, `$other_time`, optionally accepts a valid time descriptor that can be passed to ::__construct(). If a valid time descriptor is passed, the difference will be between the two times, if nothing is passed, the difference will be between the fTime and the current time.
+
+The value returned by `getFuzzyDifference()` will be a string representing the most broad time measurement between the two times. In addition, if the difference is just shy of the next largest time measurement, it will be rounded up. Thus 52 minutes would become 1 hour.
+
+Here are some examples to clarify. The following examples are comparing two times:
+
+{{{
+#!php
+$time1 = new fTime('12:24 pm');
+$time2 = new fTime('3:24 pm');
+
+echo $time1->getFuzzyDifference($time2);
+// Output: 3 hours before
+
+echo $time2->getFuzzyDifference($time1);
+// Output: 3 hours after
+
+$time3 = new fTime('12:31 pm');
+
+echo $time3->getFuzzyDifference('12:24 pm');
+// Output: 7 minutes after
+
+$time4 = new fTime('12:24:57 pm');
+
+echo $time4->getFuzzyDifference('12:24 pm');
+// Output: 1 minute after
+}}}
+
+These examples show output when comparing an fTime object with the current time:
+
+{{{
+#!php
+// First, let’s assume the time is currently 1:19 am.
+
+$time1 = new fTime('11:59 pm');
+$time2 = new fTime('12:53 am');
+$time3 = new fTime('7:00 am');
+
+echo $time1->getFuzzyDifference();
+// Output: 1 day from now
+
+echo $time2->getFuzzyDifference();
+// Output: 26 minutes ago
+
+echo $time3->getFuzzyDifference();
+// Output: 6 hours from now
+}}}
+
+An optional boolean parameter, `$simple`, can also be passed to `getFuzzyDifference()`. When `TRUE`, this parameter causes the method to return the difference in time, but not the direction.
+
+{{{
+#!php
+$time1 = new fTime('12:24 pm');
+$time2 = new fTime('3:24 pm');
+
+echo $time1->getFuzzyDifference($time2, TRUE);
+// Output: 3 hours
+
+echo $time2->getFuzzyDifference($time1, TRUE);
+// Output: 3 hours
+
+$time3 = new fTime('12:31 pm');
+
+echo $time3->getFuzzyDifference('12:24 pm', TRUE);
+// Output: 7 minutes
+}}}

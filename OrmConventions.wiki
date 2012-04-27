@@ -1,0 +1,225 @@
+= ORM Conventions =
+<<toc>>
+
+The Flourish ORM uses a few different conventions to prevent needless
+configuration and to reduce typing. Most of the conventions have to do with the
+database schema and various notations.
+
+== Primary Keys ==
+
+The whole ORM is built in such a way that all tables you are using with it
+should have primary keys. Without primary keys, things may start acting weird or
+breaking. If you don't have primary keys for your tables, consider adding them,
+they're generally considered a best practice.
+
+== Database Table & Column Notation ==
+
+The Flourish ORM assumes that all database table and column names are written in
+`underscore_notation`. Below is an example of a correctly implemented database
+table:
+
+{{{
+#!sql
+CREATE TABLE users (
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(100) NOT NULL
+);
+}}}
+
+'''This database table would not be properly detected:'''
+
+{{{
+#!sql
+CREATE TABLE Users (
+    FirstName VARCHAR(255) NOT NULL,
+    LastName VARCHAR(255) NOT NULL,
+    Email VARCHAR(255) NOT NULL UNIQUE,
+    Password VARCHAR(100) NOT NULL
+);
+}}}
+
+With correct `underscore_notation`, numbers should be separated from words by an
+underscore, such as `address_2`. If a number is not separated by an underscore,
+or you are having other notation conversion issues, you man need to
+[/docs/fGrammar#FixingNotationConversionIssues customize the notation
+conversion] using fGrammar.
+
+== Method Notation ==
+
+Methods for fActiveRecord objects use `lowerCamelCase`, like the rest of the
+methods in Flourish. When dealing with database columns, every method will be in
+the form `verbColumnName()`. Below are some example of working with the `users`
+table defined in [#SchemaNotation Schema Notation]:
+
+{{{
+#!php
+$user->getFirstName();
+$user->setLastName($last_name);
+}}}
+
+== HTML Form Notation ==
+
+HTML forms use `underscore_notation` just as the database schema should. The
+method fActiveRecord::populate() will looks for input names in
+`underscore_notation` when populating an object. Below is an example of a valid
+HTML form that will work with the `users` table defined in [#SchemaNotation
+Schema Notation]:
+
+{{{
+#!html
+<form action="" method="post" charset="utf-8">
+    <p>
+        <label for="users-first_name">First Name:</label>
+        <input id="users-first_name" type="text" name="first_name" />
+    </p>
+    <p>
+        <label for="users-last_name">Last Name:</label>
+        <input id="users-last_name" type="text" name="last_name" />
+    </p>
+    <p>
+        <label for="users-email">Email:</label>
+        <input id="users-email" type="text" name="email" />
+    </p>
+    <p>
+        <label for="users-password">Password:</label>
+        <input id="users-password" type="password" name="password" />
+    </p>
+</form>
+}}}
+
+== Table Names ==
+
+Database table names should always be ''plural'' nouns. A proper database table
+name would be `users`, not `user`.
+
+For existing databases, it is possible to configure a class to model a non-
+plural table name, or a name that is different than the class. The static method
+fORM::mapClassToTable() accepts a `$class` and `$table` and will override the
+default mapping. The fActiveRecord page includes an
+[/docs/fActiveRecord#CustomClasstoTableMapping example of custom mapping].
+
+== Joining Tables ==
+
+When two tables are related in a many-to-many relationship the proper way to
+model the relationship is to use a table consisting of the primary keys from
+each of the two tables. Flourish uses the term '''joining table''' to refer to
+these.
+
+Currently Flourish only works with single column `FOREIGN KEY` constraints, thus
+these simple tables consist of exactly two columns, each of which have a
+`FOREIGN KEY` constraint. The `PRIMARY KEY` of the joining table a multi-column
+key containing both `FOREIGN KEY` columns.
+
+== Relationship Routes ==
+
+When two database tables are in more than one relationship via `FOREIGN KEY`
+constraints, the Flourish ORM uses the term '''route''' to refer to the
+different ways in which the two tables are related. If two tables only have a
+single relationship, routes will never need to be specified. Otherwise routes
+will, and the following rules are used to determine the route name.
+
+ - Many-to-many relationships use the joining table name for the route name
+ - One-to-many relationships use the column in the related table that has the
+   `FOREIGN KEY` constraint
+ - One-to-one and many-to-one relationships use the column that has the
+   `FOREIGN KEY` constraint
+
+== Schemas (Oracle/DB2 Users) ==
+
+PostgreSQL, MSSQL, Oracle and DB2 all have the concept of schemas, although in
+Oracle and DB2 a schema is simply a specific user's set of database objects.
+Schemas are used for grouping tables, views, functions and other database
+objects.
+
+With the Flourish ORM (and in raw SQL) a table in the non-default schema
+(`public` for PostgreSQL, `dbo` for MSSQL and the username for Oracle) is
+represented by `schema.table`. Anywhere that a table name can be used in the
+ORM, a `schema.table` string can also be used. This includes methods such as
+fORM::mapClassToTable(), for mapping a class to a table with a different name
+or in a different schema, and fRecordSet::build(), when specifying a related
+table in the `$where_conditions`.
+
+== Multiple Databases ==
+
+The Flourish ORM supports using multiple databases, both for vertical partition
+and master-slave setups. Please see the [/docs/fORMDatabase fORMDatabase
+documentation] for more information.
+
+== MySQL Storage Engine ==
+
+The Flourish ORM is built on top of the principles of relational database
+systems including [http://en.wikipedia.org/wiki/Database_transaction
+transactions] and [http://en.wikipedia.org/wiki/Foreign_key foreign key]
+constraints. MySQL is built in such a way that
+[http://dev.mysql.com/doc/refman/5.0/en/storage-engines.html multiple storage
+engines] are supported to do the work of actually storing data. Choosing the
+right storage engine for MySQL is essential for getting the Flourish ORM to
+work to the best of its abilities.
+
+Unfortunately not all of the MySQL storage engines support the necessary
+features such as transactions and foreign key constraints. In fact the default
+storage engine, MyISAM, does not support either of these features as of MySQL
+5.0. The InnoDB storage engine, which is shipped with MySQL by default, does
+however support the necessary features. Because of these feature limitations,
+developers should be sure to specify the InnoDB storage engine when creating
+tables to be used with the Flourish ORM.
+
+Below is an example of creating an InnoDB database table in MySQL, note
+specifically the `ENGINE` parameter after the closing `)` of the table
+definition.
+
+{{{
+#!sql
+CREATE TABLE users (
+    customer_id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(100) NOT NULL
+) ENGINE=InnoDB;
+}}}
+
+If the InnoDB engine is not used for tables, foreign key constraints will not be
+created and Flourish will be unable to automatically detect the relationships
+between tables. In addition, any operations on multiple records will not be
+atomic since transactions are not supported. Thus the first record could be
+successfully changed, but if the second one fails, the first will not be rolled
+back.
+
+== SQLite Foreign Key Constraints ==
+
+SQLite databases supports the syntax for foreign key constraints, however does
+not enforce them as of version 3.6.4. In order to enforce the foreign key
+constraints, triggers must be used instead.
+
+A slightly old, but still relevant,
+[http://www.sqlite.org/cvstrac/wiki?p=ForeignKeyTriggers wiki page on the SQLite
+site] explains how triggers can be used to enforce foreign keys. There are a
+couple of tools mentioned that can automatically generate the appropriate
+triggers.
+
+In addition, the fDatabase::translatedQuery() method will automatically create
+appropriate triggers for `CREATE TABLE` statements executed through an instance
+of the fDatabase class. If a `CREATE TABLE` statement is executed that includes
+a `FOREIGN KEY` constraint, the clauses will be automatically parsed for the
+relevant restrictions and the triggers will be created. Both `ON UPDATE` and
+`ON DELETE` clauses plus the actions `RESTRICT`, `NO ACTION`, `CASCADE` and
+`SET NULL` are supported:
+
+{{{
+#!php
+// The following will create a users table that actually
+// enforces the group_id foreign key constraint
+$db->translatedQuery("
+CREATE TABLE users (
+    customer_id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(100) NOT NULL,
+    group_id INTEGER REFERENCES groups(group_id) ON DELETE RESTRICT
+)
+");
+}}}

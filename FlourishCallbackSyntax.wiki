@@ -1,0 +1,59 @@
+= Flourish Callback Syntax =
+
+In most programming languages where functions are first-class members, the
+syntax for a function or method callback is simply the function/method name
+without the parenthesis. The below snippet of javascript defines a function
+and then uses a callback for setTimeout to cause the function to be executed
+at a later time.
+
+{{{
+#!js
+function foo() {
+    // Do stuff
+}
+setTimeout(foo, 100);
+}}}
+
+Unfortunately PHP does not treat function at first-class members of the
+language. It uses strings and arrays for function and method callbacks
+respectively. In an attempt to make the callback syntax a little more intuitive,
+Flourish uses class constants and the `__get()` magic method to make
+javascript-style callbacks.
+
+Flourish defines class constants with the same name as all static methods:
+
+{{{
+#!php
+// Uppercase a UTF-8 string
+$string = fUTF8::upper($string);
+
+// Uppercase an array of UTF-8 strings (PHP 5.2 only)
+$strings = array_map(fUTF8::upper, $strings);
+}}}
+
+The only caveat with these class constants is that in PHP 5.1 they need to be
+passed to fCore::callback() if they are going to be used with built-in PHP
+functions. This is because the constants are the string-style static method
+callbacks, which were added in PHP 5.2. The method fCore::callback() translates
+them into the array-style syntax that works in 5.1.
+
+{{{
+#!php
+// PHP 5.1 compatible callbacks for PHP functions
+$string = array_map(fCore::callback(fUTF8::upper), $strings);
+}}}
+
+For instance method callbacks, Flourish uses the `__get()` magic method to
+create the appropriate array-syntax callback for the object being called.
+
+{{{
+#!php
+$ten_dollars = new fMoney(10);
+echo $ten_dollars->format();
+
+// Callback syntax for format
+fCore::call($ten_dollars->format);
+}}}
+
+Both the instance and static method callback syntaxes work on every method of
+every Flourish class.

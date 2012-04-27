@@ -1,0 +1,397 @@
+= fEmail =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fEmail Class Documentation]'''
+ - [/api/fEmail API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fEmail.php Source Code]
+
+<<toc bare>>
+
+== Email Classes <<toc skip>> ==
+ - '''fEmail'''
+ - fMailbox
+ - fSMTP
+)))
+
+The fEmail class provides an interface to very easily send well-formed emails with UTF-8 content, HTML, attachments and S/MIME encryption and signing. fEmail uses PHP’s built-in [http://php.net/function.mail `mail()`] function by default, but can be used with fSMTP for mass emailing or mailing via a remote mail server.
+
+== Instantiation ==
+
+Creating a new email is as simple as making a new instance of fEmail:
+
+{{{
+#!php
+$email = new fEmail();
+}}}
+
+== Recipients ==
+
+fEmail supports `To:`, `CC:` and `BCC:` recipients through the methods ::addRecipient(), ::addCCRecipient() and ::addBCCRecipient(). Each method requires a single parameter `$email` and accepts a second optional parameter `$name`. The add methods can be called any number of times to add any number of recipients:
+
+{{{
+#!php
+// Add our recipient
+$email->addRecipient('will@example.com', 'Will');
+
+// Add a few people to the CC and BCC lists
+$email->addCCRecipient('john@example.com');
+$email->addCCRecipient('bob@example.com', 'Bob Smith, Jr.');
+
+$email->addBCCRecipient('alice@example.com');
+}}}
+
+If need be, all regular, CC and BCC recipients can be cleared by calling the method ::clearRecipients().
+
+{{{
+#!php
+$email->clearRecipients();
+}}}
+
+== From Headers ==
+
+When sending a message you will also need to set the `From:` address via the method ::setFromEmail(). The first parameter, `$email`, is required, however the second parameter, `$name`, is optional. Unfortunately the implementation of `mail()` on Windows does not allow setting the `$name` parameter. ''A `$name` will work on Windows if you use fSMTP.''
+
+{{{
+#!php
+// Set who the email is from
+$email->setFromEmail('will@example.com');
+
+// Include the user’s name
+$email->setFromEmail('will@example.com', 'Will');
+}}}
+
+It is also possible to set the `Return-Path:` header on almost all servers. This email address is listed as the “true” source of the email and will be the recipient of any bounces or delivery notifications. The method ::setBounceToEmail() sets this address with just a single parameter `$email`:
+
+{{{
+#!php
+$email->setBounceToEmail('will@example.com');
+}}}
+
+== Subject and Body ==
+
+All email must have a subject and body set by the methods ::setSubject() and ::setBody(). Both of these methods accept a single parameter, a UTF-8 string.
+
+{{{
+#!php
+// Set the subject include UTF-8 curly quotes
+$email->setSubject('This won’t break email programs because it is properly encoded by the class');
+
+// Set the body to include a string containing UTF-8
+$email->setBody('This is the body of the email…');
+}}}
+
+=== Inline Body Templating ===
+
+The ::setBody() method can also take a second parameter, `$unindent_expand_constants`, which is a boolean. When this parameter is `TRUE`, the body will be unindented as much as possible, and will have all `{CONSTANT_NAME}` strings replaced with the constants value, if defined. This parameter is useful for inline generation of bodies where you don’t want to deal with the issues of having a fully unindented end to a `HEREDOC` string.
+
+For example, the following PHP:
+
+{{{
+#!php
+// Unindenting the body and exapanding curly-braced constant names
+if ($email_address) {
+    $email = new fEmail();
+    $email->addRecipient($email_address);
+    // …
+    $email->setBody("
+        Hello $name,
+        
+        Thanks for submitting your request, we’ll get back to you as soon as we can!
+
+        {EMAIL_SIGNATURE}
+    ", TRUE);
+}
+}}}
+
+would create the email body:
+
+{{{
+Hello John Smith,
+
+Thanks for submitting your request, we’ll get back to you as soon as we can!
+
+Sincerely,
+The ACME Co. Team
+}}}
+
+Without the parameter, the body would be:
+
+{{{
+ 
+        Hello John Smith,
+
+        Thanks for submitting your request, we’ll get back to you as soon as we can!
+
+        {EMAIL_SIGNATURE}
+ 
+}}}
+
+The `HEREDOC` equivalent of our desired output would be:
+
+{{{
+#!php
+if ($email_address) {
+    $email = new fEmail();
+    // …
+    $signature = EMAIL_SIGNATURE;
+    $email->setBody(<<<EOF
+Hello $name,
+
+Thanks for submitting your request, we’ll get back to you as soon as we can!
+
+$signature
+EOF
+    , TRUE);
+}
+}}}
+
+In short, the `$unindent_expand_constants` parameter allows for cleaner PHP with logical indentation levels.
+
+=== Loading a Body Template ===
+
+When dealing with a more complex body example, or wishing to separate the email templates from your PHP, the method ::loadBody() can be used. This methods accepts two parameters, the `$file` to load the body from and an array of `$replacements` to be performed.
+
+The `$file` parameter can be either a file path or an fFile object. The `$replacements` parameter should be an associative array with the terms to search for being the keys and the strings to replace them with being the values.
+
+{{{
+#!php
+$email->loadBody(
+    './email_templates/welcome.txt',
+    array(
+        '{NAME}'  => $name,
+        '{LOGIN}' => $login
+    )
+);
+}}}
+
+''Please note that the terms to search for do not have to be in any particular format, a simple [http://php.net/str_replace `str_replace()`] call is used to do the replacements.''
+
+== HTML Body ==
+
+It is also possible to add an HTML version of the body by passing it to ::setHTMLBody(). This HTML content should be encoded using UTF-8:
+
+{{{
+#!php
+$email->setHTMLBody('<p>This it the HTML version of the body…</p>');
+}}}
+
+=== Loading an HTML Body Template ===
+
+Just like ::loadBody() for the plaintext body, the HTML body can be loaded from a file via ::loadHTMLBody(). This methods accepts two parameters, the `$file` to load the body from and an array of `$replacements` to be performed.
+
+The `$file` parameter can be either a file path or an fFile object. The `$replacements` parameter should be an associative array with the terms to search for being the keys and the strings to replace them with being the values.
+
+{{{
+#!php
+$email->loadHTMLBody(
+    './email_templates/welcome.html',
+    array(
+        '{NAME}'  => $name,
+        '{LOGIN}' => $login
+    )
+);
+}}}
+
+''Please note that the terms to search for do not have to be in any particular format, a simple [http://php.net/str_replace `str_replace()`] call is used to do the replacements.''
+
+== Self-Contained HTML Images (Related Files) ==
+
+When using an HTML body, it is possible to add files to the email that can be referenced in the HTML, but do not appear as an attachment. Such related files are added by the ::addRelatedFile() method. This method requires either one or two parameters: `$contents`, or `$contents` and `$filename`. If `$contents` is an fFile object, no `$filename` is necessary. A URL will be returned for direct embedding into HTML `src` or `href` attributes.
+
+{{{
+#!php
+$logo_url = $email->addRelatedFile(new fFile('./images/logo.gif'));
+$email->setHTMLBody("<p>Thanks for your input!</p><p>ACME Corp.<img src='$logo_url' alt='ACME Corp'></p>");
+}}}
+
+There is an optional third parameter, `$mime_type`, which can be used to fix incorrect detection of the mime type of a related file.
+
+{{{
+#!php
+$logo_url = $email->addRelatedFile(new fFile('./images/logo.gif'), 'email_logo.gif', 'image/gif');
+}}}
+
+== Attachments ==
+
+Attachments can be added to an email by calling the method ::addAttachment(). The method requires either one or two parameters: `$contents`, or `$contents` and `$filename`. If `$contents` is an fFile object, no `$filename` is necessary.
+
+{{{
+#!php
+foreach ($result as $row) {
+    $csv_contents .= join(",", $row) . "\n";
+}
+
+// Pass in the contents of the file, plus a filename for it
+$email->addAttachment($csv_contents, 'report.csv');
+
+// Passing an fFile object
+$email->addAttachment(new fFile('./report.pdf'));
+}}}
+
+There is an optional third parameter, `$mime_type`, which can be used to fix incorrect detection of the mime type of an attachment.
+
+{{{
+#!php
+$email->addAttachment($file_contents, 'filename.tab', 'text/csv');
+}}}
+
+There is no limit to the number of attachments.
+
+== S/MIME Encryption and Signing ==
+
+The fEmail class provides support for encrypting and signing messages using S/MIME. To encrypt a message, the PEM-encoded public certificate will be needed. To sign a message, the PEM-encoded private key will be needed. To encrypt and sign you will need both (but not for the user). Please see [/docs/ObtainingaSecureCertificateKeyPair Obtaining a Secure Certificate/Key Pair] for information about how to get the necessary files.
+
+To encrypt a message, call the method ::encrypt() and pass the path to the recipient’s PEM-encoded public certificate:
+
+{{{
+#!php
+$email->encrypt('/path/to/recipients.cer');
+}}}
+
+To sign a message, call ::sign() and pass in the sender’s public certificate path, private key path and private key password (if applicable):
+
+{{{
+#!php
+$email->sign('/path/to/senders.cer', '/path/to/senders.key', 'key_password');
+}}}
+
+If you call both `sign()` and `encrypt()` (in either order), the message will be signed, then encrypted and then signed again. This is the most secure method, however certain older email clients may not open such emails. 
+
+== Sending ==
+
+To send an email, simply call the ::send() method.
+
+{{{
+#!php
+$message_id = $email->send();
+}}}
+
+The return value is the generated `Message-ID` header for the email, which can be used with the `In-Reply-To` header for tracking replies. ''The fMailbox class provides functionality for checking and parsing email.''
+
+== Custom Headers ==
+
+If there is a need to add custom headers to an email message, the method ::addCustomHeader() will accept the header `$name` and `$value`. The `$value` should be a plain string - the method will handle any necessary encoding or line wrapping necessary to keep the headers standards-compliant.
+
+{{{
+#!php
+$email->addCustomHeader('X-My-Header', 'This is the value I want to send!');
+}}}
+
+It is possible to set multiple headers at once by passing an associative array to ::addCustomHeader().
+
+{{{
+#!php
+// Set headers that some programs use to indicate priority
+$email->addCustomHeader(array(
+    'X-Priority' => '1',
+    'Importance' => 'High'
+));
+}}}
+
+== Fixing Formatting Issues ==
+
+On some linux/unix server running [http://en.wikipedia.org/wiki/Qmail qmail] as the sendmail replacement, you may experience issues with emails looking corrupted to the recipients. This will often take the form of equal signs (=) appearing throughout the content and lines being wrapped in odd places.
+
+The technical cause of the issue is that the qmail sendmail binary is automatically replacing every line feed (\n) with a CR-LF (\r\n) because the email specifications require emails use CR-LF and linux uses LF as the line ending. Qmail is trying to ensure you are sending emails that meet specifications, however it is not checking to see if the email already has the proper line endings.
+
+The first way to try and solve this issue is to use fSMTP and connect to the SMTP server on `localhost`. This by-passes the command-line interface to qmail:
+
+{{{
+#!php
+$smtp = new fSMTP('localhost');
+$email->send($smtp);
+}}}
+
+If that is not possible, the static method ::fixQmail() should fix the issue. On servers where `open_basedir` and `safe_mode` are not in effect, fEmail will make a commandline call to sendmail and will replace all CR-LF with just LF. If that is not possible, fEmail will simply replace all CR-LFs with LF, however emails with long headers may still have issues. 
+
+Normally you would only enable this fix if you experience the issue. Since the fix affects all instances of fEmail, you’ll normally want to call it in a configuration file.
+
+{{{
+#!php
+fEmail::fixQmail();
+}}}  
+
+== Validating Email Addresses ==
+
+In certain situations it may be necessary to validate an email address when not using fValidation or fORMValidation with the ORM. The fEmail class provides two regular expression constants to help with the task.
+
+These regular expressions are designed to fully match the `mailbox` specification of [http://tools.ietf.org/html/rfc2822#section-3.4 RFC2822 Section 3.4] '''except''' for allowing comments and folding white space. Quoted strings '''are''' supported along with the `+`, `-` and other special characters.
+
+Below is an example of some of the various ''valid'' email address formats that are supported:
+
+{{{
+# regular address
+will@example.com
+
+# with + suffix
+will+foo@example.com
+
+# with - suffix
+will-foo@example.com
+
+# periods
+will.foo@example.com
+
+# quoted strings
+"will foo"@example.com
+
+# combinations
+"will foo".bar+baz@example.com
+}}} 
+
+The two constants are [/api/fEmail#EMAIL_REGEX `EMAIL_REGEX`] and [/api/fEmail#NAME_EMAIL_REGEX `NAME_EMAIL_REGEX`]. `EMAIL_REGEX` will match an email address, while `NAME_EMAIL_REGEX` will match a `name <email>` string.
+
+`EMAIL_REGEX` captures 3 subpatterns in the following format:
+ - ![0]: The whole email address
+ - ![1]: The part of the email before the @
+ - ![2]: The part of the email after the @
+
+For example:
+
+{{{
+#!php
+preg_match(fEmail::EMAIL_REGEX, 'will@example.com', $matches);
+
+echo $matches[0] . "\n";
+echo $matches[1] . "\n";
+echo $matches[2];
+}}}
+
+will output the following:
+
+{{{
+will@example.com
+will
+example.com
+}}}
+
+`NAME EMAIL_REGEX` captures 5 subpatterns in the following format:
+ - ![0]: The whole name and email address
+ - ![1]: The name
+ - ![2]: The whole email address
+ - ![3]: The part of the email before the @
+ - ![4]: The part of the email after the @
+
+For example:
+
+{{{
+#!php
+preg_match(fEmail::NAME_EMAIL_REGEX, 'Will <will@example.com>', $matches);
+
+echo $matches[0] . "\n";
+echo $matches[1] . "\n";
+echo $matches[2] . "\n";
+echo $matches[3] . "\n";
+echo $matches[4];
+}}}
+
+will output the following:
+
+{{{
+Will <will@example.com>
+Will
+will@example.com
+will
+example.com
+}}}

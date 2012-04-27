@@ -1,0 +1,220 @@
+= fCryptography =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fCryptography Class Documentation]'''
+ - [/api/fCryptography API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fCryptography.php Source Code]
+
+<<toc bare>>
+)))
+
+The fCryptography class provides a simple interface for password hashing, symmetric key encryption and public key encryption. All of the cryptographic methods have been chosen since they are considered to be best practices and fairly secure (which is obviously a relative term). In each section the general algorithm will be explained to help in understanding what level of security is afforded.
+
+Also note that all of the method return values will contain only ASCII characters &mdash; base64 encoding is used to ensure this.
+
+Please do note that this is not meant to be a definitive resource for cryptographic information, I highly recommend reading more about [http://en.wikipedia.org/wiki/Cryptography cryptography] from other sources.
+
+== Random Numbers and Strings ==
+
+The built in random number generator in PHP, [http://php.net/rand rand()] can suffer from a number of attacks, such as outlined by Steffan Esser in his article [http://www.suspekt.org/2008/08/17/mt_srand-and-not-so-random-numbers/ mt_srand and not so random numbers]. To help combat this issue, the fCryptography class provides a ::random() method that will ensure that the random number generator has been seeded with a good seed value. '''''Be sure not to call the PHP functions `srand()` or `mt_srand()` in your code.'''''
+
+{{{
+#!php
+// Get a random number
+$rand = fCryptography::random();
+
+// Get a random number between 1 and 100
+$rand = fCryptography::random(1, 100);
+}}}
+
+If you need a random string (such as for an authentication code), you can use the method ::randomString(). It requires one parameter, `$length`, which is the desired string length. A second optional parameter, `$type`, allows specifying what set of characters will be used in the string. Options include `'alphanumeric'` (the default), `'alpha'`, `'numeric'`, and `'hexadecimal'`.
+
+{{{
+#!php
+// Generate an 8 character alphanumeric string
+$code = fCryptography::randomString(8);
+
+// Generate a 32 character hexadecimal string
+$code = fCryptography::randomString(32, 'hexadecimal');
+}}}
+
+== Password Hashing ==
+
+=== General Information ===
+
+Password security is easy to overlook when you don’t have the whole picture. Even if your site doesn’t store any vital information, most users use the same password for most if not all of their accounts, possibly even the email account they used on your site. Because of this fact password security is a big deal for all sites, and storing passwords in plain text is a very insecure practice.
+
+A common practice is to [http://en.wikipedia.org/wiki/Hash_function hash] a users password using a method such as MD5. Passwords that have been hashed this way are susceptible to [http://en.wikipedia.org/wiki/Rainbow_table rainbow table] attacks. In order to provide a reasonable amount of security, all passwords should be hashed using a [http://en.wikipedia.org/wiki/Salt_(cryptography) salt].
+
+By using a salt when hashing the password you pretty much require that a hacker use brute force to decrypt the password. As processors have been increasing in speed the number of hashes that can be checked per second  is constantly increasing, not to mention that hardware exists specially built for hashing. Thus to help prevent brute force attacks it is a common practice to make the hash take a significant enough amount of computation so that brute force attacks take even longer.
+
+The key is to balance the computation time to be short enough that a normal user logging in would not notice a performance issue, while a hacker would be significantly slowed in their task of generating millions of hashes.
+
+The ::hashPassword() method takes the provided password and runs it through a non-trivial number of rounds of SHA-1 hashing, alternating including and excluding a random salt from the value being hashed.
+
+The output of includes an indicator that the fCryptography class was used for hashing, the salt used (which is unique for each invocation of the method), and the hashed password. The password can be verified by sending this return value and the password to test to the ::checkPasswordHash().
+
+=== Hashing and Checking ===
+
+Here is an example of using the methods:
+
+{{{
+#!php
+$hash = fCryptography::hashPassword('Example password');
+// ...
+if (fCryptography::checkPasswordHash('Example password', $hash)) {
+    echo 'The correct password was entered';
+}
+}}}
+
+Here is what the output of `hashPassword()` looks like:
+
+{{{
+fCryptography::password_hash#Gu19bpZN94#ac74c4ad9ed7103e051e583af86599b95237e9af
+}}}
+
+== Symmetric-Key Encryption ==
+
+=== General Information ===
+
+[http://en.wikipedia.org/wiki/Symmetric_key Symmetric key encryption] is encryption where the same secret key is used for both encryption and decryption. This type of encryption can easily be thwarted if the secret key is stored on the server and that machine is compromised. Because of this it is not recommended as a transparent encryption happening behind the scenes, but rather when a user will provide the secret key each time they access a site.
+
+The ::symmetricKeyEncrypt() method uses the Rijndael block cipher, which is the basis of the [http://en.wikipedia.org/wiki/Advanced_Encryption_Standard Advanced Encryption Standard] (or AES). The Rijndael cipher is used with a 192 bit block size and a 256 bit key in [http://en.wikipedia.org/wiki/Block_cipher_modes_of_operation#Cipher_feedback_.28CFB.29 cipher feedback mode] with a random [http://en.wikipedia.org/wiki/Initialization_vector IV]. The encrypted plain text and IV are then run through [http://en.wikipedia.org/wiki/HMAC HMAC-SHA-1] for data integrity checking during decryption.
+
+When decrypting using ::symmetricKeyDecrypt(), the HMAC is verified to ensure the encrypted value has not been corrupted or altered. The secret key and IV are then used to decrypt the original plain text.
+
+If you aren’t familiar with cryptography or the algorithms mentioned, you can rest assured that the technique and algorithms used are approved for use by the U.S. government when storing TOP SECRET documents.
+
+The fCryptography class does enforce the requirement that the secret key is at least 8 characters long. In addition, the return value from `symmetricKeyEncrypt()` is not simply an encrypted string, but also contains information indicating the encrypted text came from Flourish, the IV, the encrypted plain text and the HMAC.
+
+=== Encryption and Decryption ===
+
+Here is an example of using `symmetricKeyEncrypt()` and `symmetricKeyDecrypt()`:
+
+{{{
+#!php
+// Encrypt the data
+$ciphertext = fCryptography::symmetricKeyEncrypt('This is a secret message to be encrypted', 'Secret Key');
+
+// Decrypt the data
+$plaintext  = fCryptography::symmetricKeyDecrypt($ciphertext, 'Secret Key');
+}}}
+
+Here is an example of what the ciphertext would look like:
+
+{{{
+fCryptography::symmetric#1l2rt6kP0kqdIDuSVpGrSoTy08sE33fAMf6Y0M0CtOU=#csRlMH6l6dnks6hCOhI+IxDAA69GAI/d5L3L77G0parEdlc/dDDz1z/ASX/I8suj/uAEXjxShhcrEwo0IzYODuoeSdmJvGKZJtquCWkKPg==#ef5973e32808e01f5be2745a0a9ef61396992ddf
+}}}
+
+''Please note that the symmetric key methods require both the mcrypt and hash extensions for PHP to be installed.''
+
+== Public-Key Encryption and Signing ==
+
+=== General Information ===
+
+[http://en.wikipedia.org/wiki/Public-key_cryptography Public-key encryption] is encryption where a readily available public key can be used by anyone to encrypt data that only the corresponding private key can decrypt. The private key is usually protected by a password, allowing for it to be stored on a server without fear of compromise by simply reading it.
+
+Public-key cryptography would allow for encryption to happen behind the scenes on the front-end of a web site, while requiring users decrypting the information to provide the private-key password.
+
+To perform public-key encryption you will need an X.509 public-key certificate and private key in PEM format. Please visit the [/docs/ObtainingaSecureCertificateKeyPair Obtaining a Secure Certificate Key Pair] page for more information.
+
+The public certificate is not actually used to do the encryption, but rather a randomly generated 128-bit key  is used for the encryption process and then the public certificate (which is 1024 or 2048 bits in length) is used to encrypt that random key. The cipher used for the encryption is the [http://en.wikipedia.org/wiki/RC4 RC4 stream cipher]. On the receiving end the private key is used to decrypt the random RC4 key and then that is in turn used to decrypt the actual data.
+
+To ensure that the data is not tampered with between encryption and decryption, the encrypted random key and the ciphertext are run through HMAC-SHA-1 and included in the output. This HMAC is verified when the data is decrypted.
+
+=== Encryption ===
+
+To encrypt a string you will need the public certificate and the method ::publicKeyEncrypt(). Simply pass the message and the path to the public certificate to the method and you will receive an encrypted string:
+
+{{{
+#!php
+$ciphertext = fCrytography::publicKeyEncrypt('This is a secret message!', './public.cer');
+}}}
+
+Here is an example of what the ciphertext would look like:
+
+{{{
+fCryptography::public#VHpfAoWC2h2sqFtdRy7Ihv7P2C1VPQ0SQduHT5div6+nq8Y0o6+sM5XgLDl+zXMnmY4+xOtohsBaFQ/MDiWA7VI5vXgK0j04vv6bcnkGwFz1M+o3Tuyo8Yu152Gj7iajJz9S1fiLOo4PMiRnafxbtfyExMFKJ6wiyc7AfjiGUUM=#YLehWyfNOvUEPrsFtRFeBHtvKJOy#4258dbd7e6bd144ab1aa98a0f5d2a9f8be9fb231
+}}}
+
+=== Decryption ===
+
+To decrypt the ciphertext the private key and private key password are required to be passed with the ciphertext to the ::publicKeyDecrypt() method. If the private key in unencrypted (not recommended when placed on the same server as the encrypted data) then an empty string can be passed as the password parameter:
+
+{{{
+#!php
+// Using a private key that is encrypted with a password
+$plaintext = fCryptography::publicKeyDecrypt($ciphertext, './private.key', 'private key password');
+
+// Using a private key that is not encrypted
+$plaintext = fCryptography::publicKeyDecrypt($ciphertext, './private.key', '');
+}}}
+
+=== Signing and Verification ===
+
+Public-key cryptography also provides functionality to verify that a message has originated from a specific author through signing and verification. The private key can be used to create a secure message digest of a message or string and then the public key can be used to verify it.
+
+The method ::publicKeySign() will create the signature for a plaintext source. It takes three parameters, the `$plaintext` to create a signature for, the `$private_key_file` path and the `$password` for the private key. The signature will be returned by the method in base-64 encoding to allow for transmission over channels that may not properly transmit binary data.
+
+{{{
+#!php
+$signature = fCryptography::publicKeySign($plaintext, './private.key', 'private key password');
+}}} 
+
+The signature of any plaintext can be authenticated by using the author’s public key and the method ::publicKeyVerify(). This method will return a boolean indicating if the claimed author actually created the plaintext in question. The three parameters are the `$plaintext`, the base-64 encoded `$signature` and the author’s `$public_key_file`.
+
+{{{
+#!php
+if (fCryptography::publicKeyVerify($plaintext, $signature, './public.cer')) {
+   echo 'This message has been verified authentic!';
+}
+}}}
+
+== Hash and Ciphertext Formats ==
+
+If you are hashing or encrypting data using the fCryptography class but need to reverse the process on another system you will probably want to refer to this section as a starting point, and then look at the [https://github.com/flourishlib/flourish-classes/blob/master/fCryptography.php source code].
+
+If you simply wish to decrypt data encrypted with or check a hash created by the fCryptography class, please check the appropriate section above the relevant decrypt or check method. 
+
+=== hashPassword() ===
+
+`hashPassword()` outputs a string in the following format:
+
+{{{
+fCryptography::password_hash#{salt}#{hash}
+}}}
+
+`{salt}` is a random 10 character alphanumeric string that prepended to the password before being run through  `sha1()`. `{hash}` is a result of another non-trivial number of iterations of executing `sha1()` on the result of the last `sha1()` call appended with the original password or salt in alternating fashion.
+
+=== symmetricKeyEncrypt() ===
+
+`symmetricKeyEncrypt()` outputs a string in the following format:
+
+{{{
+fCryptography::symmetric#{iv}#{ciphertext}#{hmac}
+}}}
+
+The `{iv}` is the randomly generated initialization vector that has been base-64 encoded.
+
+The `{ciphertext}` is the provided plaintext that has been encrypted using Rijndael-192 in CFB mode using the initialization vector and then base-64 encoded.
+
+The `{hmac}` is the encrypted initialization vector concatenated with the encrypted plaintext (neither having been base-64 encoded yet). It is then run through a SHA-1 HMAC using the secret key provided.
+
+=== publicKeyEncrypt() ===
+
+`publicKeyEncrypt()` outputs a string in the following format:
+
+{{{
+fCrytography::public#{secret_key}#{ciphertext}#{hmac}
+}}}
+
+The `{secret_key}` is a random 128-bit RC4 secret key that has been encrypted (via RSA) using provided public certificate. It is base64-encoded before added to the output string.
+
+`{ciphertext}` is the plaintext that has been encrypted via the RC4 stream cipher using the random RC4 key and is encoded using base64.
+
+`{hmac}` is a SHA-1 HMAC of the concatenated encrypted secret key and the ciphertext generated using the plaintext as the key. Neither the encrypted secret key, nor the ciphertext is base64 encoded before the HMAC is calculated.
+
+=== publicKeySign() ===
+
+`publicKeySign()` returns a base-64 encoded SHA-1 hash of the plaintext that has been encrypted using the private key.

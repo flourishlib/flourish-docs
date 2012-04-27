@@ -1,0 +1,116 @@
+= fJSON =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fJSON Class Documentation]'''
+ - [/api/fJSON API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fJSON.php Source Code]
+
+<<toc bare>>
+)))
+
+The fJSON class is primarily a compatibility class to allow for encoding and decoding JSON strings on server running PHP 5.0 and 5.1—PHP 5.2 comes bundled with [http://php.net/json_encode `json_encode()`] and [http://php.net/json_decode `json_decode()`]. In addition, the class provides a simple method to send the proper headers with a JSON response.
+
+== Encoding and Decoding ==
+
+The methods ::encode() and ::decode() allow for encoding and decoding JSON respectively. For servers that do have the `json` PHP extension, the `json` extension functions will be used. A native PHP implementation will automatically be used for server that do not have the `json` extension installed.
+
+=== Encoding ===
+
+`encode()` takes a single parameter, the PHP value to encode. Associative arrays will be encoded as JSON objects, with the rest of PHP data types being converted into the equivalent JSON data type. ''Technically all valid JSON needs to be either an array or an object, however the PHP `json` extension does not follow this restriction.''
+
+The following PHP
+
+{{{
+#!php
+echo fJSON::encode(array());
+echo "\n\n";
+
+echo fJSON::encode(
+    array(1, 2, 3, 4, 'Hello!', TRUE, FALSE, NULL)
+);
+echo "\n\n";
+
+echo fJSON::encode(
+    array('foo' => 'bar', 'key' => TRUE
+);
+}}}
+
+would output the following JSON:
+
+{{{
+[]
+
+[1,2,3,4,"Hello!",true,false,null]
+
+{"foo":"bar","key":true}
+}}} 
+
+=== Decoding ===
+
+`decode()` takes a JSON string and will convert it into the equivalent PHP data types. An optional second parameter `$assoc` when set to `TRUE` will cause JSON objects to be converted to associative arrays instead of an instance of the PHP class `stdClass`.
+
+The following PHP
+
+{{{
+#!php
+echo fCore::dump(fJSON::decode('[]'));
+echo "\n\n";
+
+echo fCore::dump(fJSON::decode('[1,2,3,4,"Hello!",true,false,null]'));
+echo "\n\n";
+
+echo fCore::dump(fJSON::decode('{"foo":"bar","key":true}'));
+echo "\n\n";
+
+echo fCore::dump(fJSON::decode('{"foo":"bar","key":true}', TRUE));
+}}}
+
+would output the following text:
+
+{{{
+Array
+(
+)
+
+Array
+(
+    [0] => 1
+    [1] => 2
+    [2] => 3
+    [3] => 4
+    [4] => Hello!
+    [5] => {true}
+    [6] => {false}
+    [7] => {null}
+)
+
+stdClass Object
+(
+    [foo] => bar
+    [key] => {true}
+)
+
+Array
+(
+    [foo] => bar
+    [key] => {true}
+)
+}}} 
+
+== Sending the Content Type Header ==
+
+If you are returning JSON in a response, calling the ::sendHeader() mehod will ensure that the `Content-Type` header is set to the correct value of `application/json; charset=utf-8`.
+
+== Outputting ==
+
+Usually when writing a script that creates JSON, the header will need to be sent and a PHP value will need to be encoded and output. The static method ::output() does all of this.
+
+{{{
+#!php
+// These two blocks are equivalent
+fJSON::sendHeader();
+echo fJSON::encode($value);
+
+fJSON::output($value);
+}}}

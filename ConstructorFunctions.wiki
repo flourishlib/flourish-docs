@@ -1,0 +1,10 @@
+= Constructor Functions = 
+
+Constructor functions are functions with the same name as Flourish instance
+classes that accept the same parameters, and return a new object. Their only
+purpose is to work around the fact that up until PHP 5.4, it was not possible
+to chain method calls off of a constructor.
+
+While the constructor functions used to be a manual add-on to Flourish, they
+are now defined inside of fLoader and will be available when using fLoader
+to load Flourish.

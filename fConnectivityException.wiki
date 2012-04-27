@@ -1,0 +1,29 @@
+= fConnectivityException =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fConnectivityException Class Documentation]'''
+ - [/api/fConnectivityException API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fConnectivityException.php Source Code]
+
+<<toc bare>>
+
+== Exception Classes <<toc skip>> ==
+ - fException
+  - fExpectedException
+   - fAuthorizationException
+   - fEmptySetException
+   - fNoRemainingException
+   - fNoRowsException
+   - fNotFoundException
+   - fValidationException
+  - fUnexpectedException
+   - '''fConnectivityException'''
+   - fEnvironmentException
+   - fProgrammerException
+   - fSQLException
+)))
+
+fConnectivityException is a sub-class of fUnexpectedException that indicates some sort of unrecoverable connection error has occurred. This could be used in situations where a database server is not reachable, a remote API could not be contacted, or an FTP connection timed out.
+
+''This space intentionally left blank''

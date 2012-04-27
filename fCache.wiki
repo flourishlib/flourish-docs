@@ -1,0 +1,192 @@
+= fCache =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fCache Class Documentation]'''
+ - [/api/fCache API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fCache.php Source Code]
+
+<<toc bare>>
+)))
+
+The fCache class provides a consistent caching interface that can use the [#APCBackend APC], [#DatabaseBackend database], [#DirectoryBackend directory], [#FileBackend file], [#MemcacheBackend Memcache], [#RedisBackend Redis] or [#XCacheBackend XCache] backends. It can be used to cache any end-developer data, but can also be used by the fDatabase, fSQLTranslation and fSchema classes.
+
+== Instantiation ==
+
+Creating an instance of fCache requires a `$type`, and possibly a `$data_store` and `$options`. The following types are supported. The `$data_store` and `$config` parameters are explained for each backend separately.
+
+ - [#APCBackend `apc`]
+ - [#DatabaseBackend `database`]
+ - [#DirectoryBackend `directory`]
+ - [#FileBackend `file`]
+ - [#MemcacheBackend `memcache`]
+ - [#RedisBackend `redis`]
+ - [#XCacheBackend `xcache`]
+
+=== APC Backend ===
+
+Using [http://us.php.net/ref.apc APC] for the backend only requires the `$type` parameter be set to `'apc'`. The `$data_store` and `$config` parameters are unused.
+
+{{{
+#!php
+$cache = new fCache('apc');
+}}}
+
+APC is best suited for smaller values where performance is of utmost concern.
+
+''Please note that APC shares values server-wide, so cache keys should be appropriately unique in case there are multiple sites being hosted on the same server.''
+
+=== Database Backend ===
+
+Using a database for the backend requires the `$type` parameter be set to `'database'` and the `$data_store` be an fDatabase object. The `$config` parameter must be an array with the following keys:
+
+ - `table`: The database table to use for caching
+ - `key_column`: The column to store the cache key in - must support at least 250 character strings
+ - `value_column`: The column to store the serialized value in - this should probably be a TEXT column to support large values, or BLOB if binary serialization is used
+ - `value_data_type`: If a BLOB column is being used for the `value_column`, this should be set to `'blob'`, otherwise `'string'`
+ - `ttl_column`: The column to store the expiration timestamp of the cached entry - this should be an integer
+
+{{{
+#!php
+$db = new fDatabase('mysql', 'mydb', 'username', 'password');
+$config = array(
+    'table'           => 'sessions',
+    'key_column'      => 'session_id',
+    'value_column'    => 'values',
+    'value_data_type' => 'string',
+    'ttl_column'      => 'expiration'
+);
+$cache = new fCache('database', $db, $config);
+}}}
+
+Each value is stored in a separate row in the table. A database backend is useful for caching values that need to be shared across servers.
+
+=== Directory Backend ===
+
+Using a directory for the backend requires the `$type` parameter be set to `'directory'` and the `$data_store` be the path to a directory that is writable. The `$config` parameter is unused.
+
+{{{
+#!php
+$cache = new fCache('directory', '/path/to/dir');
+}}}
+
+A directory backend is generally useful for caching larger values on a single server.
+
+Each value in a directory cache is stored in a separate file, with the filenames being hashes of the cache key. The first line of the file is the integer unix timestamp of when the value expires. All subsequent lines in the file are part of the value. An expiration timestamp of `0` indicates no expiration.
+
+=== File Backend ===
+
+For file caches, the `$type` should be `'file'` and the `$data_store` should be a file path. The `$config` parameter is unused. 
+
+{{{
+#!php
+$cache = new fCache('file', '/path/to/cache');
+}}}
+
+A file backend is most useful for simple single-server caching that requires no extra hosting infrastructure or uncommon PHP extensions.
+
+All values are stored in a serialized array containing the keys, values and expiration timestamps. 
+
+=== Memcache Backend ===
+
+For [http://www.danga.com/memcached/ memcache] caches, the `$type` should be set to `'memcache'` and the `$data_store` should be a [http://php.net/memcache Memcache] or [http://php.net/memcached Memcached] object. The `$config` parameter is unused.
+
+{{{
+#!php
+// Using the memcache extension
+$memcache = new Memcache();
+$memcache->connect('localhost', 11211);
+$cache = new fCache('memcache', $memcache);
+
+// Using the memcached extension
+$memcached = new Memcached();
+$memcached->addServer('localhost', 11211);
+$cache = new fCache('memcache', $memcached);
+}}}
+
+A memcache backend is useful for caching all sorts of different values, often for larger sites or sites with multiple web servers.
+
+=== Redis Backend ===
+
+For [http://redis.io Redis] caches, the `$type` should be set to `'redis'` and the `$data_store` should be an instance of the `Redis` class from the [https://github.com/nicolasff/phpredis phpredis extension]. The `$config` parameter is unused.
+
+{{{
+#!php
+$redis = new Redis();
+$redis->connect('localhost');
+$cache = new fCache('redis', $redis);
+}}}
+
+A redis backend is useful for caching all sorts of different values, often for larger sites or sites with multiple web servers.
+
+=== XCache Backend ===
+
+For [http://xcache.lighttpd.net/ XCache] caches, the `$type` should be set to `'xcache'`. The `$data_store` and `$config` parameters are unused.
+
+{{{
+#!php
+$cache = new fCache('xcache');
+}}}
+
+XCache is best suited for smaller values where performance is of utmost concern.
+
+''Please note that XCache shares values server-wide, so cache keys should be appropriately unique in case there are multiple sites being hosted on the same server.''
+
+== Setting Values ==
+
+The method ::set() accepts a `$key`, `$value` and optional `$ttl` (time-to-live). The `$key` should be a string of 250 characters or less, and the `$value` should be any PHP data type that can be serialized. ''The main PHP data type that can not be serialized in a `resource`.''
+
+The `$key` and `$value` combination will be stored in the cache permanently, unless a `$ttl` is provided. The `$ttl` is the number of seconds the cached `$value` will be accessible. Values with a `$ttl` will be cleaned up by whatever back-end is providing the cache. ''Warning: the APC back-end currently functions in such a way that the `$ttl` will be ignored when getting a value in the same script execution that it is set.''
+
+''Please note that all PHP values are serialized before being stored in the cache. This ensures that the exact same value that goes into the cache will come back out, even if the back-end only supports basic types such as strings and integers.''
+
+{{{
+#!php
+// This value will last until explicitly deleted or the cache is cleared
+$cache->set('computed_value', $computed_value);
+
+// This value will last for 60 seconds
+$cache->set('other_computed_value', $other_computed_value, 60);
+}}}
+
+It is also possible to only set a value if the `$key` does not already exist in the cache. This is performed using the ::add() method. `add()` takes the exact same parameters as `set()`, however it returns a boolean indicating if the value was added.
+
+{{{
+#!php
+if ($cache->add('master_value', $master_value)) {
+    // Compute a related value and store it also
+}
+}}}
+
+== Getting Values ==
+
+The method ::get() takes the `$key` to retrieve the value for, and an optional `$default` to return if the `$key` is not set. If `$default` is not specified, `NULL` will be returned for any `$key` that is not currently set.
+
+{{{
+#!php
+// This will return NULL if there is no value for 'computed_value'
+$cached_value = $cache->get('computed_value');
+
+// This will return 10 if there is no value for 'computed_value'
+$cached_value = $cache->get('computed_value', 10);
+}}}
+
+== Deleting Values ==
+
+Values can be deleted individually from the cache by calling the method ::delete() and passing the `$key` to delete.
+
+{{{
+#!php
+$cache->delete('computed_value');
+}}}
+
+== Clearing the Cache ==
+
+In addition to deleting specific cache entries, it is also possible to clear all of the entries in the cache. '''This will ''delete all key/value pairs in your cache'', and depending on your cache type, may affect all other websites on the same server or all web servers.'''
+
+''Please note that the XCache back-end may require an administrator login and password to clear the cache. This setting, and the login/password settings are controlled by ini settings.''
+
+{{{
+#!php
+$cache->clear();
+}}}

@@ -1,0 +1,59 @@
+= PHP Version Differences =
+<<toc>>
+
+Flourish is designer to be fully functional on PHP 5.1+. There are, however a
+number of end-programmer differences between PHP 5.1 and 5.2. This page
+contains an overview of the major differences.
+
+== Callback Formats ==
+
+In both 5.1 and 5.2, callbacks to instance methods of object are formulated as
+an array with the first element being the object and the second being a string
+of the method name.
+
+{{{
+#!php
+$date = new fDate();
+$callback = array($date, '__toString');
+}}}
+
+Similarly, with both 5.1 and 5.2 static method callbacks can be created with an
+array containing a string of the class and a string of the static method to
+call.
+
+{{{
+#!php
+$callback = array('fCore', 'backtrace');
+}}}
+
+In 5.2, however, a second static method callback format was added. The new
+format consists of a single string with the class name concatenated with `::`
+and then the method name.
+
+{{{
+#!php
+$callback = 'fCore::backtrace';
+}}}
+
+If you are using callbacks with Flourish, be sure to check out how Flourish
+provides an [/docs/FlourishCallbackSyntax intuitive callback syntax].
+
+== Converting Objects to Strings ==
+
+Many different kinds of objects, especially value objects, will intrinsically
+have a string representation of their value. In both 5.1 and 5.2 a
+`__toString()` method can be defined for any object. The difference between 5.1
+and 5.2 is the automatic conversion of an object to a string.
+
+In 5.1, the `__toString()` method is only automatically called when an object is
+`echo`ed or `print`ed. However, if the object is concatenated with another
+string during the `echo` or `print` statement, the `__toString()` method is
+'''not''' called. In PHP 5.2 this behavior was fixed, and the `__toString()`
+method is called whenever a string is expected.
+
+In the context of Flourish, all classes that represent some sort of simple value
+have a predefined `__toString()` methods. Also, any methods that accept strings
+or objects will automatically check for a `__toString()` method on a object and
+call that. The only thing to keep in mind is that when using objects where
+strings are expected you will need to explicitly call `__toString()` if the code
+will be run on an environment with 5.1.

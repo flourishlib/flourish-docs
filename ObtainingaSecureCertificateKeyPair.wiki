@@ -1,0 +1,152 @@
+= Obtaining a Secure Certificate/Key Pair =
+<<toc>>
+
+When dealing with [http://en.wikipedia.org/wiki/Public-key_cryptography public-
+key encryption] using the fCryptography class or sending secure emails via the
+fEmail class, you will need an [http://en.wikipedia.org/wiki/X509 x509
+public-key certificate] and a PEM-encoded private key.
+
+Certificate authorities offer certificates that will validate your identity by
+the public, however, self-generated keys can be used for any purposes where
+identity verification is not important, just encryption.
+
+[http://www.instantssl.com/ssl-certificate-products/free-email-certificate.html
+InstantSSL] and [https://www.startssl.com/ StartSSL] offer certificates for
+free, while
+[http://www.verisign.com/products-services/security-services/pki/pki-application/email-digital-id/index.html
+VeriSign] and many others offer them for a fee. Most of these services tend to
+install the certificate in your browser, and thus only work with some browsers.
+As of January 2010, Google Chrome seems to be the only major browser not
+providing this functionality. Also, since the private key/certificate is
+installed in your browser, you'll need to figure out how to use your browser to
+export the `.p12` file.
+
+''Self-signed certificates are not recommended for a secure connection
+(https://) on a public web server since browsers will not recognize you as an
+authorized certificate authority (CA) and warning messages will be displayed.''
+
+== Generating a Certificate with OpenSSL ==
+
+There are various methods to generate a self-signed SSL certificate, however
+one of the simplest to explain in using the [http://www.openssl.org OpenSSL]
+executable. Most Linux/BSD distributions and OSX all have it installed by
+default while Windows users can
+[http://www.slproweb.com/products/Win32OpenSSL.html download an installer] or
+use it through [http://cygwin.com Cygwin]. If you run the Windows installer, be
+sure to open a command prompt and `cd` to the `{install_dir}\bin` before
+executing these commands. 
+
+First, let’s generate the private key file (it will be output in PEM format) by
+executing the following command:
+
+{{{
+openssl genrsa -des3 -out private.key 1024
+}}}
+
+The output will look something like the text below and will prompt for a
+passphrase (and a repeat). This is essential for restricting access to the key
+if it is stored on the same server as the encrypted data.
+
+{{{
+Generating RSA private key, 1024 bit long modulus
+.....................................++++++
+........................++++++
+e is 65537 (0x10001)
+Enter pass phrase for private.key:
+Verifying - Enter pass phrase for private.key:
+}}}
+
+Next we need to create a certificate signing request (CSR) which is used to
+generate the certificate:
+
+{{{
+openssl req -new -x509 -key private.key -out public.crt
+}}}
+
+You will be asked a series of questions used for identifying the owner of the
+certificate (in this case, you). Below is an example with my answers in bold:
+
+{{{
+#!raw
+<pre class="wiki output">Enter pass phrase for private.key:
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [AU]:<strong>US</strong>
+State or Province Name (full name) [Some-State]:<strong>Massachusetts</strong>
+Locality Name (eg, city) []:<strong>Newburyport</strong>
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:<strong>Flourish</strong>
+Organizational Unit Name (eg, section) []:<strong>Web Development</strong>
+Common Name (eg, YOUR name) []:<strong>William Bond</strong>
+Email Address []:<strong>will@flourishlib.com</strong></pre>
+}}}
+
+When performing public-key encryption with the fCryptography you will need the
+`public.crt` and `private.key` files.
+
+== Creating a PKCS!#12 File from a Private Key and Public Certificate ==
+
+If you are going to use the certificate you generated with the fEmail class you
+will need `public.crt` for the web server and a
+[http://en.wikipedia.org/wiki/PKCS12 PKCS#12] formatted file for your email
+program. You can generate the PKCS!#12 file by executing the following:
+
+{{{
+openssl pkcs12 -export -inkey private.key -in public.crt -out private_public.p12 -name "Flourish Certificate"
+}}}
+
+Notice that the PKCS!#12 file contains both the public and the private keys. You
+will asked for a password for the PKCS!#12 file, which you will also have to
+provide to the email program you use it with:
+
+{{{
+Enter pass phrase for private.key:
+Enter Export Password:
+Verifying - Enter Export Password:
+}}}
+
+== Creating a Private Key and Public Certificate from a PKCS!#12 File ==
+
+Depending on where you obtain a secure certificate from, you may only receive a
+.p12 file since it contains both the private key and public certificate. If you
+are going to use this certificate with fCryptography or fEmail you are going to
+need the private key and public certificate separated into individual files in
+specific formats.
+
+The following command will export a `public.crt` file from an PKCS!#12 named
+`private_public.p12`:
+
+{{{
+openssl pkcs12 -in private_public.p12 -clcerts -nokeys | openssl x509 -out public.crt
+}}}
+
+You’ll be asked for the .p12 file’s password:
+
+{{{
+Enter Import Password:
+MAC verified OK
+}}}
+
+Next, we’ll export a `private.key` file from the same .p12 file:
+
+{{{
+openssl pkcs12 -in private_public.p12 -nocerts -nodes | openssl rsa -des3 -out private.key
+}}}
+
+First you will be prompted for the .p12 password, after which you will be
+prompted for the private key password (with repeat).
+
+{{{
+Enter Import Password:
+MAC verified OK
+writing RSA key
+Enter PEM pass phrase:
+Verifying - Enter PEM pass phrase:
+}}}
+
+You will now have `public.crt` and `private.key` files for use with
+fCryptography and fEmail.

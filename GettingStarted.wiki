@@ -1,0 +1,122 @@
+= Getting Started =
+<<toc>>
+
+Since Flourish isn’t a framework, getting started might seem a little daunting.
+Let’s start with getting the Flourish code and setting up our pages to include
+it.
+
+== Downloading Flourish ==
+
+As a first step, [http://flourishlib.com/download/ download flourish] and
+extract it into a directory on your server. To help ensure that a server
+misconfiguration won’t expose your PHP (possibly including database
+credentials), it is best to try and place your includes outside of the document
+root.
+
+{{{
+{doc_root}/../inc/flourish/
+}}}
+
+== Set Up an Init Script ==
+
+At the beginning of every page we aren’t going to want to include every class
+file or configuration file, so a logical first step is to create an
+initialization script to handle that. I prefer to create the script at:
+
+{{{
+{doc_root}/../inc/init.php
+}}}
+
+Inside of init.php, put:
+
+{{{
+#!php
+<?php
+include($_SERVER['DOCUMENT_ROOT'] . '/../inc/config.php');
+}}}
+
+== Create a Configuration Script ==
+
+For better separation, I prefer to put all configuration code into a separate
+file from the initialization code. I put all of my configuration code in:
+
+{{{
+{doc_root}/../inc/config.php
+}}}
+
+Inside of `config.php` we will put our auto-loading function:
+
+{{{
+#!php
+<?php
+/**
+ * Automatically includes classes
+ * 
+ * @throws Exception
+ * 
+ * @param  string $class_name  Name of the class to load
+ * @return void
+ */
+function __autoload($class_name)
+{
+	// Customize this to your root Flourish directory
+	$flourish_root = $_SERVER['DOCUMENT_ROOT'] . '/../inc/flourish/';
+	
+	$file = $flourish_root . $class_name . '.php';
+
+	if (file_exists($file)) {
+		include $file;
+		return;
+	}
+	
+	throw new Exception('The class ' . $class_name . ' could not be loaded');
+}
+}}}
+
+'''Performance tip:''' If you are running Flourish on a server that has
+[http://pecl.php.net/package/APC APC], [http://eaccelerator.net eAccelerator],
+[http://turck-mmcache.sourceforge.net/index_old.html Turck MMCache] or
+[http://xcache.lighttpd.net XCache] check out the section about
+[/docs/PerformanceTips#ClassLoading class loading].
+
+== Start Using Flourish ==
+
+Now that we have our init script setup, we can start creating pages and using
+Flourish. Just add this snippet to the top of each of your pages:
+
+{{{
+#!php
+<?php
+include_once($_SERVER['DOCUMENT_ROOT'] . '/../inc/init.php');
+}}}
+
+Alternatively if you run Apache and have access to the Apache conf file, you can
+use PHP’s [http://php.net/ini.core#ini.auto-prepend-file auto_prepend_file]
+setting with the [http://php.net/configuration.changes Apache PHP settings
+directives].
+
+== Next Steps ==
+
+If you haven’t read it already, the [/docs/HowDoI How Do I … ?] page is a good
+resource for exploring some of the functionality of Flourish. The [/docs
+documentation] includes links to detailed information about each class, class
+APIs and general documentation.
+
+The '''[/blog/FlourishDemoSite Flourish Demo Site]''' is a good way to dive
+into some code to see how Flourish can be used.
+
+For a simpler more guided introduction to Flourish, try checking out the
+following classes:
+
+ - fTemplating: Provides a simple templating system to help reduce duplicated
+   HTML
+ - fRequest: Retrieves information submitted by the user, in a secure fashion
+ - fDatabase: Standard SQL interaction with any MySQL, PostgreSQL, SQLite,
+   MSSQL, Oracle or DB2 database
+
+The documentation below includes some topics that most PHP developers should
+know or learn about:
+
+ - [/docs/Security PHP/web security]
+ - [/docs/UTF-8 UTF-8 in PHP]
+ - [/docs/ObjectRelationalMapping ORM (Object-Relational Mapping)]

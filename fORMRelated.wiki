@@ -1,0 +1,134 @@
+= fORMRelated =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fORMRelated Class Documentation]'''
+ - [/api/fORMRelated API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fORMRelated.php Source Code]
+
+<<toc bare>>
+
+== ORM Classes <<toc skip>> ==
+ - fActiveRecord
+ - fRecordSet
+
+ - fORM
+ - fORMColumn
+ - fORMDatabase
+ - fORMDate
+ - fORMFile
+ - fORMJSON
+ - fORMMoney
+ - fORMOrdering
+ - '''fORMRelated'''
+ - fORMSchema
+ - fORMValidation
+)))
+
+The fORMRelated class is a built-in part of the ORM that provides related-record functionality for fActiveRecord classes.
+
+== Ordering Related Records ==
+
+When calling a `build` method on an fActiveRecord object, by default no `ORDER BY` clause is used to order the record set. The static method ::setOrderBys() allows setting an fRecordSet::build() style order bys array for any records created through a `build` method. The method requires four parameters, the `$class` being configured, the `$related_class` to apply the order bys to, the `$order_bys` array and the `$route` to the related class. The `$route` parameter can be omitted if there is only one route.
+
+The following example will cause related groups to be returned order alphabetically.
+
+{{{
+#!php
+class User extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMRelated::setOrderBys(
+            $this,
+            'Group',
+            array('groups.name' => 'asc')
+        );
+    }
+}
+
+// The groups record set created here will be ordered by name
+$user = new User(1);
+$groups = $user->buildGroups();
+}}}
+
+== Overriding Related Record Names ==
+
+Record names are used in messaging related to records, as the fORM documentation discusses. Sometimes, however, a record will need to have a different name when presented in reference to another record. The static method ::overrideRelatedRecordName() allows defining a custom name to use in the context of being a related record.
+
+{{{
+#!sql
+CREATE TABLE groups (
+    name VARCHAR(255) PRIMARY KEY
+);
+
+CREATE TABLE users (
+    user_id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE members (
+    group VARCHAR(255) NOT NULL REFERENCES groups(name) ON DELETE CASCADE ON UPDATE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    PRIMARY KEY(group, user_id)
+);
+
+CREATE TABLE administrators(
+    group VARCHAR(255) NOT NULL REFERENCES groups(name) ON DELETE CASCADE ON UPDATE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    PRIMARY KEY(group, user_id)
+);
+}}}
+
+The schema presented above related `users` to `groups` in two ways, as `members` of the group, or as `administrators`. If a validation rule was set up to require at least one user as a member and one user as an administrator, it wouldn’t make sense if the error messages for both just referenced users.
+
+`overrideRelatedRecordName()` accepts four parameters, the `$class` being configured, the `$related_class` to set the name for, the `$record_name` to set and optionally the `$route` to the related class. The `$route` is only required if there is more than one.
+
+{{{
+#!php
+class Group extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMRelated::overrideRelatedRecordName($this, 'User', 'Member', 'members');
+        fORMRelated::overrideRelatedRecordName($this, 'User', 'Administrator', 'administrators');
+    }
+}
+}}}
+
+== Overriding Child Record Validation Names ==
+
+For `one-to-many` relationships, it is possible to override the name given to the child record when being referenced in the validation message (or array). By default, the name of the record will be in the form `Child Record #1`. The method ::registerValidationNameMethod() allows setting a method to be called on a record to retrieve its name.
+
+::registerValidationNameMethod() requires three parameters, the `$class`, the `$related_class` and the `$method` to call on the related record. An optional fourth parameter, `$route`, may be specified in there is more than one relationship route between `$class` and `$related_class`.
+
+{{{
+#!php
+class User extends fActiveRecord
+{
+    protected function configure()
+    {
+        fORMRelated::registerValidationNameMethod('User', 'UserPreference', 'makeValidationName');
+    }
+}
+class UserPreference extends fActiveRecord
+{
+    public function makeValidationName()
+    {
+        return $this->getName() . ' Preference';
+    }
+}
+}}}
+
+The registered method may accept an optional parameter, which will contain a one-based index of its position in the set of child records.
+
+{{{
+#!php
+class UserPreference extends fActiveRecord
+{
+    public function makeValidationName(number)
+    {
+        return 'Preference #' . $number;
+    }
+}
+}}}

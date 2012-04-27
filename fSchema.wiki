@@ -1,0 +1,420 @@
+= fSchema =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fSchema Class Documentation]'''
+ - [/api/fSchema API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fSchema.php Source Code]
+
+<<toc bare>>
+
+== Database Classes <<toc skip>> ==
+ - fDatabase
+ - fNoRowsException
+ - fResult
+ - fSQLException
+ - fSQLTranslation
+ - fSQLSchemaTranslation
+ - '''fSchema'''
+ - fStatement
+ - fUnbufferedResult
+)))
+
+The fSchema class provides information about the structure of a database, from table and column info to keys and relationships. The database schema is converted to a standard format that can then be used by other code wishing to interact with the database.
+
+== Example Database ==
+
+The commands throughout this page are used to display information about database structure. Here are the `CREATE TABLE` statements for the example database:
+
+{{{
+#!sql
+CREATE TABLE groups (
+    group_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(100) NOT NULL UNIQUE
+);
+
+CREATE TABLE users (
+    user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(200) NOT NULL UNIQUE,
+    posts INTEGER NOT NULL DEFAULT 0,
+    birthday DATE,
+    status VARCHAR(20) NOT NULL DEFAULT 'Inactive' CHECK(status IN ('Active', 'Inactive')),
+    group_id INTEGER REFERENCES groups(group_id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+}}}
+
+== Instantiation ==
+
+The fSchema class simply requires and instance of the fDatabase class in order to be instantiated:
+
+{{{
+#!php
+$db     = new fDatabase('sqlite', $_SERVER['DOCUMENT_ROOT'] . '/example.db');
+$schema = new fSchema($db);
+}}}
+
+== Table Listing ==
+
+One of the most basic tasks to perform with the fSchema class is to return a list of all tables in the database by using ::getTables():
+
+{{{
+#!php
+$tables = $schema->getTables();
+fCore::expose($tables);
+}}}
+
+The output of the above PHP would be:
+
+{{{
+#!html
+<pre class="exposed">Array
+(
+    [0] =&gt; groups
+    [1] =&gt; users
+)</pre>
+}}}
+
+== Column Information ==
+
+Column information can be returned for any table in the database using the ::getColumnInfo() method. The returned associative array contains the following information about each column: `type`, `not_null`, `default`, `valid_values`, `max_length`, `min_value`, `max_value`, `decimal_places` and `auto_increment`. For details about the returned array and the data type mapping that occurs, please view the [/api/fSchema#getColumnInfo documentation for `getColumnInfo()`].
+
+Here is an example:
+
+{{{
+#!php
+$column_info = $schema->getColumnInfo('users');
+fCore::expose($column_info);
+}}}
+
+The HTML output would be:
+
+{{{
+#!html
+<pre class="exposed">Array
+(
+    [user_id] =&gt; Array
+        (
+            [type] =&gt; integer
+            [not_null] =&gt; {true}
+            [auto_increment] =&gt; {true}
+            [default] =&gt; {null}
+            [valid_values] =&gt; {null}
+            [min_value] =&gt; -2147483648
+            [max_value] =&gt; 2147483647
+            [max_length] =&gt; {null}
+            [decimal_places] =&gt; {null}
+            [comment] =&gt; {empty_string}
+        )
+  
+    [name] =&gt; Array
+        (
+            [type] =&gt; varchar
+            [max_length] =&gt; 200
+            [not_null] =&gt; {true}
+            [default] =&gt; {null}
+            [valid_values] =&gt; {null}
+            [min_value] =&gt; {null}
+            [max_value] =&gt; 2147483647
+            [decimal_places] =&gt; {null}
+            [auto_increment] =&gt; {false}
+            [comment] =&gt; {empty_string}
+        )
+  
+    [posts] =&gt; Array
+        (
+            [type] =&gt; integer
+            [not_null] =&gt; {true}
+            [default] =&gt; 0
+            [valid_values] =&gt; {null}
+            [max_length] =&gt; {null}
+            [min_value] =&gt; -2147483648
+            [max_value] =&gt; 2147483647
+            [decimal_places] =&gt; {null}
+            [auto_increment] =&gt; {false}
+            [comment] =&gt; {empty_string}
+        )
+  
+    [birthday] =&gt; Array
+        (
+            [type] =&gt; date
+            [not_null] =&gt; {false}
+            [default] =&gt; {null}
+            [valid_values] =&gt; {null}
+            [max_length] =&gt; {null}
+            [min_value] =&gt; {null}
+            [max_value] =&gt; {null}
+            [decimal_places] =&gt; {null}
+            [auto_increment] =&gt; {false}
+            [comment] =&gt; {empty_string}
+        )
+  
+    [status] =&gt; Array
+        (
+            [type] =&gt; varchar
+            [max_length] =&gt; 20
+            [not_null] =&gt; {true}
+            [default] =&gt; Inactive
+
+            [valid_values] =&gt; Array
+                (
+                    [0] =&gt; Active
+                    [1] =&gt; Inactive
+                )
+            
+            [min_value] =&gt; {null}
+            [max_value] =&gt; {null}
+            [decimal_places] =&gt; {null}
+            [auto_increment] =&gt; {false}
+            [comment] =&gt; {empty_string}
+        )
+  
+    [group_id] =&gt; Array
+        (
+            [type] =&gt; integer
+            [not_null] =&gt; {false}
+            [default] =&gt; {null}
+            [valid_values] =&gt; {null}
+            [min_value] =&gt; -2147483648
+            [max_value] =&gt; 2147483647
+            [max_length] =&gt; {null}
+            [auto_increment] =&gt; {false}
+            [comment] =&gt; {empty_string}
+        )
+  
+)</pre>
+}}}
+
+== Key Information ==
+
+In addition to determining basic information about table and columns in a database, fSchema can also detect all of the primary, foreign and unique keys in a database using the ::getKeys() method.
+
+Here is the PHP to get the key information:
+
+{{{
+#!php
+$keys = $schema->getKeys('users');
+fCore::expose($keys);
+}}}
+
+And here is the HTML that would be output:
+
+{{{
+#!html
+<pre class="exposed">Array
+(
+    [primary] =&gt; Array
+        (
+            [0] =&gt; user_id
+        )
+  
+    [foreign] =&gt; Array
+        (
+            [0] =&gt; Array
+                (
+                    [column] =&gt; group_id
+                    [foreign_table] =&gt; groups
+                    [foreign_column] =&gt; group_id
+                    [on_delete] =&gt; cascade
+                    [on_update] =&gt; cascade
+                )
+        
+        )
+  
+    [unique] =&gt; Array
+        (
+            [0] =&gt; Array
+                (
+                    [0] =&gt; name
+                )
+        
+        )
+  
+)</pre>
+}}}
+
+== Relationships ==
+
+Key information for the database is useful, but another very useful bit of information is how the different tables in the database are related. ::getRelationships() method uses the key information to determine the `one-to-one`, `one-to-many`, `many-to-one` and `many-to-many` relationships present:
+
+{{{
+#!php
+$users_relationships = $schema->getRelationships('users');
+fCore::expose($users_relationships);
+
+$groups_relationships = $schema->getRelationships('groups');
+fCore::expose($groups_relationships);
+}}}
+
+The output for the `users` relationships would be:
+
+{{{
+#!html
+<pre class="exposed">Array
+(
+    [one-to-one] =&gt; Array
+        (
+        )
+  
+    [many-to-one] =&gt; Array
+        (
+            [0] =&gt; Array
+                (
+                    [column] =&gt; group_id
+                    [related_table] =&gt; groups
+                    [related_column] =&gt; group_id
+                )
+        
+        )
+  
+    [one-to-many] =&gt; Array
+        (
+        )
+  
+    [many-to-many] =&gt; Array
+        (
+        )
+  
+)</pre>
+}}}
+
+While the output for the `groups` relationships would be:
+
+{{{
+#!html
+<pre class="exposed">Array
+(
+    [one-to-one] =&gt; Array
+        (
+        )
+  
+    [many-to-one] =&gt; Array
+        (
+        )
+  
+    [one-to-many] =&gt; Array
+        (
+            [0] =&gt; Array
+                (
+                    [column] =&gt; group_id
+                    [related_table] =&gt; users
+                    [related_column] =&gt; group_id
+                    [on_delete] =&gt; cascade
+                    [on_update] =&gt; cascade
+                )
+        
+        )
+  
+    [many-to-many] =&gt; Array
+        (
+        )
+  
+)</pre>
+}}}
+
+== Overriding ==
+
+The fSchema class is used extensively by the object relational mapping code built into Flourish. Occasionally Flourish will support certain features based on database structure that are impossible to accomplish in a certain type of database.
+
+To allow the object relational mapping code to still perform the necessary tasks, even if the database engine doesn’t support a feature, the ::setColumnInfoOverride() and ::setKeysOverride() methods allow schema information to be overridden.
+
+''Please note that faking foreign-key relationships for MyISAM tables in MySQL may cause your data to get into an inconsistent state. This is because MyISAM tables do not support transactions, which Flourish uses for the purpose of atomic changes to the database across multiple tables at a time.''
+
+=== Example Database ===
+
+Below are some example tables to show how foreign keys can be faked to help provide relational data integrity. These examples are presented using MySQL.
+
+{{{
+#!sql
+CREATE TABLE users (
+	user_id INTEGER PRIMARY KEY AUTO_INCREMENT,
+	first_name VARCHAR(100) NOT NULL,
+	last_name VARCHAR(100) NOT NULL,
+	email_address VARCHAR(200) NOT NULL UNIQUE,
+	hashed_password VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE groups (
+	group_id INTEGER PRIMARY KEY AUTO_INCREMENT,
+	name VARCHAR(255) NOT NULL UNIQUE,
+	group_leader INTEGER,
+	group_founder INTEGER
+);
+
+CREATE TABLE users_groups (
+	user_id INTEGER NOT NULL,
+	group_id INTEGER NOT NULL,
+	PRIMARY KEY(user_id, group_id)
+);
+}}}
+
+=== PHP to Override ===
+
+The following PHP will create relationships between groups and users. There will not be any normal situations where you would want to override the primary or unique keys on a table. ''If you are using the ORM, this code should be executed before any fActiveRecord objects are used, such as in the bootstrap page, or something called from it.''
+
+The exact array structure to use with ::setKeysOverride() can be found in the ::getKeys() method documentation.
+
+{{{
+#!php
+$schema = new fSchema($database);
+
+// If we are using the ORM we’ll want to attach this instance
+fORMSchema::attach($schema);
+
+// Set up the foreign keys from groups to users
+$schema->setKeysOverride(
+	array(
+		array(
+			'column'         => 'group_founder',
+			'foreign_table'  => 'users',
+			'foreign_column' => 'user_id',
+			'on_delete'      => 'cascade',
+			'on_update'      => 'cascade'
+		),
+		array(
+			'column'         => 'group_leader',
+			'foreign_table'  => 'users',
+			'foreign_column' => 'user_id',
+			'on_delete'      => 'cascade',
+			'on_update'      => 'cascade'
+		)
+	),
+	'groups',
+	'foreign'
+);
+
+// Set up the keys for users_groups to create a join table
+// for a many-to-many relationship between users and groups
+$schema->setKeysOverride(
+	array(
+		array(
+			'column'         => 'user_id',
+			'foreign_table'  => 'users',
+			'foreign_column' => 'user_id',
+			'on_delete'      => 'cascade',
+			'on_update'      => 'cascade'
+		),
+		array(
+			'column'         => 'group_id',
+			'foreign_table'  => 'groups',
+			'foreign_column' => 'group_id',
+			'on_delete'      => 'cascade',
+			'on_update'      => 'cascade'
+		)
+	),
+	'users_groups',
+	'foreign'
+);
+}}}
+
+== Caching ==
+
+Since the fSchema class executes a number of database calls to determine the structure of the database, it may be desirable to cache the information to reduce database load and script execution time. The method ::enableCaching() accepts an instance of the fCache object and will use it to save all of the schema information.
+
+{{{
+#!php
+$schema->enableCaching(new fCache('file', '/path/to/cache/file'));
+}}}
+
+The method ::clearCache() will clear out the cached information, which would be useful when the database schema changes.
+
+When using the [/docs/ObjectRelationalMapping Flourish ORM], the fORM class provides some [/docs/fORM#SchemaCaching useful caching functionality] that will automatically clear the cache when database errors occur.

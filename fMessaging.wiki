@@ -1,0 +1,115 @@
+= fMessaging =
+<<css mode="next" class="sidebar">>
+(((
+== Class Resources <<toc skip>> ==
+ - '''[/docs/fMessaging Class Documentation]'''
+ - [/api/fMessaging API Reference]
+ - [https://github.com/flourishlib/flourish-classes/blob/master/fMessaging.php Source Code]
+
+<<toc bare>>
+)))
+
+The fMessaging class is a simple session-based messaging tool that allows for messaging to be pulled out of your URLs and kept behind the scenes. 
+
+== Creating Messages ==
+
+The method ::create() will construct a message and save it for later retrieval. It accepts three parameters, the `$name` of the message, the `$recipient` and the `$message` itself. Here is an example of creating a message:
+
+{{{
+#!php
+fMessaging::create('success', '/admin/users', 'The user was successfully created');
+}}}
+
+As you can see above, I used a URL as the recipient, however this is not a requirement. Any string can be used as a recipient, you will just need to use the same recipient when retrieving the message, as you will see below.
+
+== Retrieving Messages ==
+
+Once a message has been created, it can then be retrieved. The action of retrieving a message deletes it from the session, thus messages are write-once/read-once. The ::retrieve() method requires two parameters, the `$name` of the message and the `$recipient`. Both parameters need to be the same as when the message was created.
+
+If a message for the `$name` and `$recipient` combination has not been created, `NULL` will be returned instead.
+
+Here is an example of retrieving a message and displaying it:
+
+{{{
+#!php
+if ($success = fMessaging::retrieve('success', '/admin/users')) {
+    echo $success;
+}
+}}}
+
+Since calling `retrieve()` removes the message and prevents it from being retrieved on another page, sometimes it is more appropriate to call the method ::check(). `check()` will return a boolean, indicating if a message with the `$name` and `$recipient` currently exists:
+
+{{{
+#!php
+if (fMessaging::check('success', '/admin/users')) {
+    // ...
+}
+}}}
+
+== Displaying Messages ==
+
+The ::show() method will display any message with the `$name` and `$recipient` specified. If a message exists, it be displayed in a `p` or `div` tag. By default, the `$name` of the message will be used as the CSS class for the HTML tag, however if a different class is desired, the optional third parameter `$css_class` can be specified.
+
+`show()` will only print the output if the string is not empty, and will detect if the provided content contains any block-level HTML tags, automatically switching from printing a `p` tag to a `div` tag.
+
+Here are a few examples:
+
+{{{
+#!php
+// Example 1: Show the success message for /admin/users
+fMessaging::show('success', '/admin/users');
+
+// Example 2: Show the error message for /admin/users with the CSS class 'message'
+fMessaging::show('error', '/admin/users', 'message');
+}}}
+
+And here is the output for the two calls to `show()` (whitespace added to the HTML for readability):
+
+{{{
+#!html
+<!-- Example 1 -->
+<p class="success">
+    The user was successfully created!
+</p>
+
+<!-- Example 2 -->
+<div class="message">
+    <p>
+        The following fields need a value:
+    </p>
+    <ul>
+        <li>Name</li>
+        <li>Email</li>
+    </ul>
+</div>
+}}}
+
+It is also possible to show multiple messages with a single call by passing an array of message names or `'*'` for all messages. Please note that using either of these options will disable the functionality of the third parameter, `$css_class`, and the message names will be used for the CSS classes.
+
+{{{
+#!php
+// Show 'success' and 'error'
+fMessaging::show(
+    array('success', 'error'),
+    '/admin/users'
+);
+
+// Show all messages for the recipient
+fMessaging::show('*', '/admin/users');
+}}}
+
+== Using No Recipient ==
+
+It is possible to use all of the fMessaging methods without a recipient. To do this, simply leave out the recipient parameter. Please note that this means each method will have one less parameter, it does ''not'' mean that `NULL` should be passed in instead.
+
+Here are the methods without a recipient:
+
+{{{
+#!php
+fMessaging::create('success', 'The user was successfully created');
+$success = fMessaging::retrieve('success');
+if (fMessaging::check('success')) { }
+fMessaging::show('success');
+}}}
+
+The only downside to not specifying a recipient is the possibility of overwriting messages in a multi-tab browser environment.
