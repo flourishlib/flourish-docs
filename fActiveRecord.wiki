@@ -29,7 +29,7 @@ The fActiveRecord class is an abstract class that follows the [http://en.wikiped
 
 In addition to providing an interface to the columns in a single table, data from other database tables related via `FOREIGN KEY` constraints can be easily and efficiently retrieved. To query for and return multiple fActiveRecord objects, please see the class fRecordSet.
 
-The following discussion is built on top of the content of [/docs/OrmConventions ORM Conventions]. Topics include database schema structure, various notation standards and information about MySQL and SQLite databases.
+The following discussion is built on top of the content of [/docs/OrmConventions ORM Conventions]. Topics include database schema structure, various notation standards and information about MySQL and SQLite databases. Please be sure to read over it since it include important information, such as the fact that column and table names must use `underscore_notation` by default.
 
 == Setup ==
 
