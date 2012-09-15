@@ -46,7 +46,7 @@ class NewsArticle extends fActiveRecord
 }
 }}}
 
-Once a file has been configured as a file upload column, the fActiveRecord::populate() method will automatically move any files uploaded in a field with the same as the column. It is also possible to upload a file for the column separately by calling the `upload` method for a column.
+Once a file has been configured as a file upload column, the fActiveRecord::populate() method will automatically move any files uploaded in a field with the same name as the column. It is also possible to upload a file for the column separately by calling the `upload` method for a column.
 
 {{{
 #!php
