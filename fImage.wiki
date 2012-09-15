@@ -121,7 +121,7 @@ $image3->saveChanges();
 
 === Resizing ===
 
-::resize() will scale the image to fit the canvas size defined by the parameters `$canvas_width` and `$canvas_height`. If either parameter is `empty()` or `0`, the image will be resized to fit the specified dimension.
+::resize() will scale the image proportionally to fit the canvas size defined by the parameters `$canvas_width` and `$canvas_height`. That is to say, the aspect ratio of the image will be retained, and it will not be stretched in either dimension. If either parameter is `empty()` or `0`, the image will be resized to fit the one specified dimension.
 
 {{{
 #!php
