@@ -369,7 +369,7 @@ fRequest::overrideAction();
 $action = fRequest::get('action');
 }}}
 
-If the user were to click `Yes, delete this user` then the action `remove` would be executed, however if the user clicked `No, keep this user` then the `list` action would be executed.
+If the user were to click `Yes, delete this user` then the action `delete` would be executed, however if the user clicked `No, keep this user` then the `list` action would be executed.
 
 It is also possible to pass a redirection URL to ::overrideAction(). If the string `%action%` is found in the redirection URL, it will be replaced with the overridden action. Here is an example:
 
