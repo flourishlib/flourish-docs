@@ -33,7 +33,7 @@ The simplest validation is done by specifying individual fields against data typ
 || ::addBooleanFields()     || ''Requires that the field(s) specified can be interpreted as a boolean if a value is entered.'' ||
 || ::addDateFields()        || ''Requires that the field(s) specified can be interpreted as a date if a value is entered.'' ||
 || ::addFloatFields()       || ''Requires that the field(s) specified contain a floating point/decimal number if a value is entered.'' ||
-|| ::addIntegerFields()     || ''Requires that the field(s) specified contain an intege if a value is entered.'' ||
+|| ::addIntegerFields()     || ''Requires that the field(s) specified contain an integer if a value is entered.'' ||
 || ::addEmailFields()       || ''Requires that the fields specified are formatted like an email address if a value is entered.'' ||
 || ::addEmailHeaderFields() || ''Checks field(s) for line breaks to prevent email header injection. Should be used whenever embedding user input into email headers.'' ||
 || ::addURLFields()         || ''Requires that the field(s) specified are formatted like a full URL (http://example.com) if a value is entered.'' ||
