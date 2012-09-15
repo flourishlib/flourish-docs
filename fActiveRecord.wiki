@@ -675,13 +675,15 @@ The detection of related tables allows for the following functionality to be pro
 
 When a column in a table contains a `FOREIGN KEY` constraint to another table, the two tables are in either a many-to-one or one-to-one relationship. The relationship would only be one-to-one if there was a `UNIQUE` constraint on the column with the `FOREIGN KEY`.
 
-For instance, the `resources` table references the `users` table via the `owner` column. Because this `FOREIGN KEY` exists, it is possible to call a `create` action to instantiate the proper `User` object. 
+For instance, the `resources` table references the `users` table via the `owner` column. Because this `FOREIGN KEY` exists, it is possible to call a `create` action to instantiate the related `User` object if one exists, or an empty `User` object if none exists.
 
 {{{
 #!php
 $resource = new Resource(1);
 $user = $resource->createUser();
 }}}
+
+''See [/docs/MethodNaming Method Naming] for info about `create` and other method verbs.''
 
 ==== One-to-one Relationships ====
 
