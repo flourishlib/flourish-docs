@@ -281,6 +281,7 @@ When creating RESTful applications it is useful to know the HTTP method used to 
 || POST              || ::isPost()            ||
 || PUT               || ::isPut()             ||
 || DELETE            || ::isDelete()          ||
+|| HEAD              || ::isHead()            ||
 
 Since browsers only currently support `GET` and `POST` method, `isPost()` will commonly be the only one used unless creating a RESTful API.
 
