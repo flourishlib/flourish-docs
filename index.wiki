@@ -70,6 +70,7 @@ The [#GeneralDocumentation general documentation] supplements the class document
  - [/docs/fCache fCache]                                      [/api/fCache API],                   [https://github.com/flourishlib/flourish-classes/blob/master/fCache.php Code]
  - [/docs/fCryptography fCryptography]                        [/api/fCryptography API],            [https://github.com/flourishlib/flourish-classes/blob/master/fCryptography.php Code]
  - [/docs/fGrammar fGrammar]                                  [/api/fGrammar API],                 [https://github.com/flourishlib/flourish-classes/blob/master/fGrammar.php Code]
+ - [/docs/fLoader fLoader]                                    [/api/fLoader API],                  [https://github.com/flourishlib/flourish-classes/blob/master/fLoader.php Code]
  - [/docs/fText fText]                                        [/api/fText API],                    [https://github.com/flourishlib/flourish-classes/blob/master/fText.php Code]
  - [/docs/fXML fXML]                                          [/api/fXML API],                     [https://github.com/flourishlib/flourish-classes/blob/master/fXML.php Code]
 )))
